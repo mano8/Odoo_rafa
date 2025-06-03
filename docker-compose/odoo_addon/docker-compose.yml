@@ -1,0 +1,101 @@
+services:
+  traefik:
+    image: traefik:v3.4.0
+    ports:
+      - "8000:80"
+      - "4430:443"
+      - "8080:8080"   # Dashboard
+      - "9000:9000"   # odoo entryPoint
+      - "9001:9001"   # hw_status entryPoint
+    volumes:
+      - ../../docker/certs/ca.pem:/etc/traefik/docker_certs/ca.pem:ro
+      - ../../docker/certs/client-cert.pem:/etc/traefik/docker_certs/client-cert.pem:ro
+      - ../../docker/certs/client-key.pem:/etc/traefik/docker_certs/client-key.pem:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic_conf.yml:/etc/traefik/dynamic_conf.yml:ro
+      - ./traefik/certs:/etc/traefik/certs:ro
+      - ./traefik/acme.json:/etc/traefik/acme.json
+    logging:
+      driver: "journald"
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+  fiesta_db:
+    image: postgres:13.21-alpine3.20
+    # set shared memory limit when using docker compose
+    shm_size: 128mb
+    volumes:
+      - ./postgres/pgdata:/var/lib/postgresql/data/pgdata
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    logging:
+      driver: "journald"
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+  hw_status_service:
+    build:
+      context: ../../hw_status
+      dockerfile: ./hw_status/Dockerfile.offline.dev
+    env_file:
+      - ./hw_status.env
+    environment:
+      ENVIRONMENT: development
+      SET_OPEN_API: true
+      SET_DOCS: true
+      SET_REDOC: true
+      PRINTER_KEY: "PP6800"
+    volumes:
+      - ../../hw_status/hw_status:/opt/hw_status
+      - ./hw_status.env:/opt/hw_status/.env:ro
+    userns_mode: "host"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.hw-proxy.loadbalancer.server.port=8015"
+    logging:
+      driver: "journald"
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+  fiesta_odoo:
+    image: odoo:18.0
+    volumes:
+      - ./odoo/data:/var/lib/odoo:rw
+      - ./odoo/config:/etc/odoo:rw
+      - ./odoo/addons:/mnt/extra-addons:rw
+    links:
+      - "fiesta_db:db"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.odoo.loadbalancer.server.port=8069"
+    command: >
+      bash -c '
+        export PGPASSWORD="$DB_PASSWORD"
+        if psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_DATABASE" -tAc "SELECT 1 FROM res_users LIMIT 1;" 2>/dev/null | grep -q 1; then
+          echo "Database odoo exists, starting normally...";
+          exec odoo --dev=reload --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD";
+        else
+          echo "Database odoo missing — initializing with -i base...";
+          exec odoo -i base --without-demo=True --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD" --stop-after-init &&
+          exec odoo --dev=reload --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD";
+        fi
+      '
+    logging:
+      driver: "journald"
+    depends_on:
+      - fiesta_db
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+networks:
+  odoo_network:
+    driver: bridge
