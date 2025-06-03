@@ -1,0 +1,157 @@
+# Translation of POS Individual Product Tickets (Custom) to Spanish
+# Copyright (C) 2025 Eli Serra
+# This file is distributed under the same license as the POS Individual Product Tickets (Custom) package.
+# Eli Serra <your.email@example.com>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 18.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-05-29 03:52+0000\n"
+"PO-Revision-Date: 2025-05-29 03:52+0000\n"
+"Last-Translator: Eli Serra, 2025\n"
+"Language: es\n"
+"Language-Team: Spanish (https://app.transifex.com/odoo/teams/41243/es/)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/receipt_screen.js:0
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/product_selection_popup.js:0
+msgid "Print Individual Receipts"
+msgstr "Imprimir Recibos Individuales"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/pos_order.js:0
+msgid "This order contains prepaid products."
+msgstr "Este pedido contiene productos prepagados."
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/pos_order.js:0
+msgid "Each prepaid product will be printed separately."
+msgstr "Cada producto prepagado se imprimirá por separado."
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/pos_order.js:0
+msgid "Do not lose your tickets; to claim the products, you need to exchange them at the bar."
+msgstr "No pierda sus tickets; para reclamar los productos, deberá canjearlos en la barra."
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/pos_order.js:0
+msgid "List of Prepaid Products:"
+msgstr "Lista de Productos Prepagados:"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/pos_order.js:0
+msgid "The product above has been prepaid."
+msgstr "El producto anterior ha sido prepagado."
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/pos_order.js:0
+msgid "Please exchange this ticket for your product at the bar."
+msgstr "Por favor, canjee este ticket por su producto en la barra."
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/pos_order.js:0
+msgid "Customer Receipt"
+msgstr "Recibo del Cliente"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/pos_order.js:0
+msgid "Cashier Receipt"
+msgstr "Recibo del Cajero"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/pos_order.js:0
+msgid "Prepaid Product"
+msgstr "Producto Prepagado"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/product_selection_popup.js:0
+msgid "Options"
+msgstr "Opciones"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/product_selection_popup.js:0
+msgid "Cancel"
+msgstr "Cancelar"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/product_selection_popup.js:0
+msgid "Select Products for Individual Receipt Printing"
+msgstr "Seleccionar Productos para Impresión de Recibos Individuales"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/product_selection_popup.js:0
+msgid "Select all products that need to be printed separately."
+msgstr "Seleccione todos los productos que necesiten ser impresos por separado."
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/product_selection_popup.js:0
+msgid "For each selected product, depending on the quantity defined, a ticket will be printed for each unit of the same product."
+msgstr "Para cada producto seleccionado, dependiendo de la cantidad definida, se imprimirá un ticket por cada unidad del mismo producto."
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/product_selection_popup.js:0
+msgid "No items found in the order."
+msgstr "No se encontraron artículos en el pedido."
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/product_selection_popup.js:0
+msgid "Select All"
+msgstr "Seleccionar Todo"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/product_selection_popup.js:0
+msgid "Deselect All"
+msgstr "Deseleccionar Todo"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/product_selection_popup.js:0
+msgid "Print Full Cashier Receipt"
+msgstr "Imprimir Recibo Completo del Cajero"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/product_selection_popup.js:0
+msgid "Print Full Customer Receipt"
+msgstr "Imprimir Recibo Completo del Cliente"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/product_selection_popup.js:0
+msgid "Print Detailed Individual Receipts"
+msgstr "Imprimir Recibos Individuales Detallados"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/product_selection_popup.js:0
+msgid "Quantity"
+msgstr "Cantidad"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/product_selection_popup.js:0
+msgid "Unit Price"
+msgstr "Precio Unitario"

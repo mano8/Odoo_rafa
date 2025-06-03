@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- see https://github.com/odoo/odoo/blob/15fd3f62769b137cb9a0625f47b333424b851a27/addons/point_of_sale/static/src/app/screens/receipt_screen/receipt/receipt_header/receipt_header.xml -->
+<templates id="template" xml:space="preserve">
+    <t t-name="pos_indv_receipt.ReceiptHeader" t-inherit="point_of_sale.ReceiptHeader" t-inherit-mode="extension">
+        <xpath expr="//div[contains(@class, 'pos-receipt-contact')]" position="inside">
+            <!-- Full Client Receipt Messages -->
+            <t t-if="props.data.printFullClientReceipt">
+                <div class="d-flex flex-column mw-100">
+                    <div class="text-center">--------------------------------</div>
+                    <div class="text-center fw-bold text-uppercase fs-1">
+                        <span t-esc="props.data.label_customer_recept" />
+                    </div>
+                    <div class="text-center">--------------------------------</div>
+                </div>
+            </t>
+            <!-- Full Client Receipt Messages -->
+            <t t-if="props.data.printCachierReceipt">
+                <div class="d-flex flex-column mw-100">
+                    <div class="text-center">--------------------------------</div>
+                    <div class="text-center fw-bold text-uppercase fs-1">
+                        <span t-esc="props.data.label_cashier_recept" />
+                    </div>
+                    <div class="text-center">--------------------------------</div>
+                </div>
+            </t>
+        </xpath>
+    </t>
+</templates>

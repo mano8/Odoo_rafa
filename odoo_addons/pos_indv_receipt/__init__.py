@@ -1,0 +1,1 @@
+"""pos_indv_receipt Odoo Addon."""

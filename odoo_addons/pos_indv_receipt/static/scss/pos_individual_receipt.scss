@@ -1,0 +1,37 @@
+// static/src/scss/pos_individual_receipt.scss
+// Odoo will compile this to CSS.
+
+.print-product-tickets-button {
+    // Custom styles for your button if needed
+}
+
+.product-selection-popup {
+    .list-group-item-action {
+        cursor: pointer;
+        &:hover {
+            background-color: var(--o-gray-100);
+        }
+    }
+    .form-check-input {
+        min-width: 1.25em;
+        height: 1.25em;
+    }
+}
+
+.pos-receipt {
+    .pos-receipt-center-align h5.text-uppercase {
+        font-weight: 600;
+    }
+}
+
+.pos-receipt {
+    .product-price  {
+        font-size: 1.4em;
+    }
+    .product-name {
+        font-size: 1.4em;
+    }
+    .pos-receipt-amount.receipt-total {
+        font-size: 1.4em;
+    }
+}

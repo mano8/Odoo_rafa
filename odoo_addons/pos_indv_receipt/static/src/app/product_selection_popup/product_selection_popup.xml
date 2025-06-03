@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="pos_indv_receipt.ProductSelectionPopup" owl="1">
+        <Dialog title="labels.title" bodyClass="'d-flex flex-column justify-content-center'" size="'xl'">
+            <div class="popup popup-lg product-selection-popup rounded-3 shadow-sm px-2">
+                <header class="modal-header d-flex flex-column align-items-center bg-light py-3 px-4 border-bottom">
+                    <h5 class="modal-title fw-bold"><t t-esc="labels.description" /></h5>
+                    <div class="text-muted fst-italic pt-2">
+                        <t t-esc="labels.note" />
+                    </div>
+                </header>
+                <main class="modal-body px-2">
+                    <div class="mb-3 border-bottom">
+                        <div class="">
+                            <h6 class="fw-bold"><t t-esc="labels.print_options_title" /></h6>
+                        </div>
+                        <div class="form-check w-100 d-flex align-items-center ms-2">
+                            <input class="form-check-input fs-2" type="checkbox"
+                                t-att-id="'printFullCachierOrder'"
+                                t-att-name="'printFullCachierOrder'"
+                                t-att-checked="state.printCachierReceipt ? true : false"
+                                t-on-change="() => this.togglePrintCachierReceipt()" />
+                            <label t-attf-for="printFullCachierOrder"
+                                class="d-flex align-items-center form-check">
+                                <i class="fa fa-print pe-1" aria-hidden="true"/>
+                                <t t-esc="labels.print_cachier_receipt" />
+                            </label>
+                        </div>
+                        <div class="form-check w-100 d-flex align-items-center ms-2">
+                            <input class="form-check-input fs-2" type="checkbox"
+                                t-att-id="'printFullClientOrder'"
+                                t-att-name="'printFullClientOrder'"
+                                t-att-checked="state.printFullClientReceipt ? true : false"
+                                t-on-change="() => this.togglePrintFullClientReceipt()" />
+                            <label t-attf-for="printFullClientOrder"
+                                class="d-flex align-items-center form-check">
+                                <i class="fa fa-print pe-1" aria-hidden="true"/>
+                                <t t-esc="labels.print_full_client_receipt" />
+                            </label>
+                        </div>
+                        <div class="form-check w-100 d-flex align-items-center ms-2">
+                            <input class="form-check-input fs-2" type="checkbox"
+                                t-att-id="'printIndividualDetalledReceipt'"
+                                t-att-name="'printIndividualDetalledReceipt'"
+                                t-att-checked="state.individualDetailledReceipt ? true : false"
+                                t-on-change="() => this.toggleIndividualDetailledReceipt()" />
+                            <label t-attf-for="printIndividualDetalledReceipt"
+                                class="d-flex align-items-center form-check">
+                                <i class="fa fa-print pe-1" aria-hidden="true"/>
+                                <t t-esc="labels.print_individual_detalled_receipt" />
+                            </label>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-start my-2 rounded">
+                        <button class="btn btn-sm btn-outline-secondary"
+                                t-on-click="() => this.toggleAll()">
+                            <t t-if="isAllSelected()"><t t-esc="labels.deselect_all" /></t>
+                            <t t-if="!isAllSelected()"><t t-esc="labels.select_all" /></t>
+                        </button>
+                    </div>
+                    <p t-if="props.body" class="mb-3 text-muted">
+                        <t t-esc="props.body" />
+                    </p>
+                    <t t-name="pos_indv_receipt.ProductSelectionPopup">
+                        <div class="list-group product-list overflow-auto" style="max-height: 40vh;">
+                            <t t-if="orderlines.length === 0">
+                                <p class="text-muted fst-italic"><t t-esc="labels.no_items_found" /></p>
+                            </t>
+
+                            <t t-foreach="orderlines || []" t-as="line" t-key="line.uuid">
+                                <div class="list-group-item d-flex align-items-center py-1">
+                                    <div class="d-flex flex-column ws-100">
+                                        <div class="form-check w-100 d-flex align-items-center">
+                                            <input class="form-check-input fs-2" type="checkbox"
+                                                t-att-id="'product_line_' + line.uuid"
+                                                t-att-checked="state.selectedLines[line.uuid].selected ? true : false"
+                                                t-on-change="() => this.toggleLine(line.uuid)" />
+                                            <label t-attf-for="product_line_{{ line.uuid }}"
+                                                class="d-flex align-items-center form-check">
+                                                <div class="flex-grow-1">
+                                                    <div class="fw-bold"><t t-esc="line.get_full_product_name()" /></div>
+                                                    <small class="text-muted">
+                                                        <t t-esc="labels.quantity" />: <t t-esc="line.get_quantity_str()" /> |
+                                                        <t t-esc="labels.unit_price" />: <t t-esc="props.formatCurrency(line.get_unit_price())" />
+                                                    </small>
+                                                </div>
+                                            </label>
+                                        </div>
+                                        <t t-if="line.get_quantity() > 1">
+                                            <div class="input-group mb-3">
+                                                <input class="form-control form-control-sm" type="number" aria-label="Prepaid Product Quantity"
+                                                    t-att-id="'product_quantity_' + line.uuid"
+                                                    t-att-value="state.selectedLines[line.uuid].quantity >= 0? state.selectedLines[line.uuid].quantity : line.get_quantity()"
+                                                    t-on-change="(ev) => this.updateQuantity(line, ev.target.value)"
+                                                    t-att-disabled="state.selectedLines[line.uuid].quantity == 0 ? true : false"
+                                                    t-att-readonly="state.selectedLines[line.uuid].quantity == 0 ? true : false"
+                                                    />
+                                                    
+                                                <span class="input-group-text">/</span>
+                                                <input class="form-control" type="number" aria-label="Prepaid Product Quantity Total"
+                                                    t-att-id="'product_quantity_total_' + line.uuid"
+                                                    t-att-value="line.get_quantity()"
+                                                    t-att-disabled="true"
+                                                    t-att-readonly="true"
+                                                />
+                                            </div>
+                                        </t>
+                                    </div>
+                                </div>
+                            </t>
+                        </div>
+                    </t>
+                </main>
+
+                <t t-set-slot="footer">
+                    <button class="btn btn-lg btn-secondary rounded-sm me-2"
+                            t-on-click="() => this.cancel()">
+                        <t t-esc="labels.cancel" />
+                    </button>
+                    <button class="btn btn-lg btn-primary rounded-sm"
+                            t-att-disabled="!hasAnySelected"
+                            t-on-click="() => this.confirm()">
+                        <i class="fa fa-print pe-1" aria-hidden="true"/>
+                        <t t-esc="labels.confirm" />
+                    </button>
+                </t>
+            </div>
+        </Dialog>
+    </t>
+</templates>
