@@ -1,0 +1,53 @@
+# dynamic_conf.yml — Development
+tls:
+  certificates:
+    - certFile: "/etc/traefik/certs/local-cert.crt"
+      keyFile:  "/etc/traefik/certs/local-cert.key"
+  stores:
+    default:
+      defaultCertificate:
+        certFile: "/etc/traefik/certs/local-cert.crt"
+        keyFile:  "/etc/traefik/certs/local-cert.key"
+
+  options:
+    default:
+      minVersion: VersionTLS12
+
+http:
+
+  # 1) Dashboard router — only on websecure, only from localhost
+  routers:
+    
+    # Odoo-Service router
+    odoo-router:
+      entryPoints:
+        - api
+      rule: "(Host(`traefik-client.local`) || Host(`192.168.1.146`) || Host(`127.0.0.1`)) && PathPrefix(`/`)"
+      service: odoo-service
+      tls: {}
+
+    # HwProxy Service router
+    hw-proxy-router:
+      entryPoints:
+        - hw
+      rule: "(Host(`traefik-client.local`) || Host(`192.168.1.146`) || Host(`127.0.0.1`)) && PathPrefix(`/hw_proxy`)"
+      service: hw-proxy-service
+      tls: {}
+
+  services:
+    odoo-service:
+      loadBalancer:
+        servers:
+          - url: "http://fiesta_odoo:8069"
+    hw-proxy-service:
+      loadBalancer:
+        servers:
+          - url: "http://hw_proxy_service:8015"
+
+  middlewares:
+    ip-allowlist:
+      IPAllowList:
+        # Only allow dashboard from the Docker host itself
+        sourceRange:
+          - "127.0.0.1/32"
+          - "::1/128"

@@ -1,0 +1,36 @@
+# traefik.yml — Development
+log:
+  level: DEBUG
+
+api:
+  dashboard: true
+  insecure: true
+
+hw:
+  dashboard: true
+  insecure: true
+
+providers:
+  docker:
+    exposedByDefault: false
+    endpoint: "tcp://10.254.254.1:2376"
+    tls:
+      ca:   "/etc/traefik/docker_certs/ca.pem"
+      cert: "/etc/traefik/docker_certs/client-cert.pem"
+      key:  "/etc/traefik/docker_certs/client-key.pem"
+  file:
+    filename: /etc/traefik/dynamic_conf.yml
+    watch: true
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+    http3: {}            # Enable HTTP/3
+  api:
+    address: ":9000"
+    http3: {}
+  hw:
+    address: ":9001"
+    http3: {}

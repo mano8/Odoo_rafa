@@ -1,0 +1,21 @@
+*.env*
+*.crt
+*.pem
+*.key
+*.srl
+*.csr
+*.pfx
+
+*README_DEV*.md
+
+# Odoo volumes
+*odoo/addons/*
+*odoo/data/*
+*odoo/config/*
+*odoo.conf
+
+# Postgres SQL volumes
+*postgres/pgdata/*
+
+# Traefik Certs
+*traefik/certs/*
