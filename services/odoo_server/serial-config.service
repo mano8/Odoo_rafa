@@ -1,0 +1,12 @@
+[Unit]
+Description=Configure POS Serial Port
+After=dev-ttyACM0.device
+Wants=dev-ttyACM0.device
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/stty -F /dev/ttyACM0 115200 cs8 -cstopb -parenb -crtscts -echo
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

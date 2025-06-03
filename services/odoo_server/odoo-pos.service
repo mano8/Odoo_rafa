@@ -1,0 +1,18 @@
+[Unit]
+Description=Odoo POS Docker Compose Stack
+Requires=serial-config.service docker.service
+After=network-online.target serial-config.service docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/Odoo_rafa/docker-compose/odoo_prod
+ExecStart=/bin/sh -c "/usr/libexec/docker/cli-plugins/docker-compose up -d --remove-orphans"
+# ExecStop=/bin/sh -c "/usr/libexec/docker/cli-plugins/docker-compose stop"
+# Restart=on-failure
+# TimeoutStartSec=600
+# RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
