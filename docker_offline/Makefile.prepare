@@ -1,0 +1,38 @@
+# /opt/Odoo_rafa/docker_offline/Makefile.prepare
+
+# Allow overriding if you don’t need sudo
+SUDO ?= sudo
+
+hw_status_DIR   := ../hw_status/hw_status
+FAT_DOCKERFILE := $(hw_status_DIR)/Dockerfile.fat
+
+TAGS := \
+	traefik:v3.4.0 \
+	postgres:13.21-alpine3.20 \
+	odoo:18.0 \
+	my-python-3.11-fat:latest
+
+.PHONY: all pull build save
+all: pull build save
+
+pull:
+	@echo "Pulling upstream images…"
+	$(SUDO) docker pull traefik:v3.4.0
+	$(SUDO) docker pull postgres:13.21-alpine3.20
+	$(SUDO) docker pull odoo:18.0
+
+build: pull
+	@echo "Building fat-Python base image…"
+	$(SUDO) docker build \
+	  -f $(FAT_DOCKERFILE) \
+	  -t my-python-3.11-fat:latest \
+	  $(hw_status_DIR)
+
+save: build
+	@echo "Saving images to tarballs…"
+	$(SUDO) docker save traefik:v3.4.0   -o traefik_v3.4.0.tar
+	$(SUDO) docker save postgres:13.21-alpine3.20 \
+	  -o postgres_13.21-alpine3.20.tar
+	$(SUDO) docker save odoo:18.0 -o odoo_18.0.tar
+	$(SUDO) docker save my-python-3.11-fat:latest \
+	  -o python-3.11-fat.tar
