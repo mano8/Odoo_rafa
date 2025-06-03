@@ -1,0 +1,155 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f8f9fa;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.card {
+    margin-bottom: 1.5rem;
+}
+
+.tab-content .card.h-100 {
+    /* Ensure h-100 works within tab panes */
+    display: flex;
+    flex-direction: column;
+}
+
+.tab-content .card.h-100>.card-body {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.log-output-container,
+.stty-output-container,
+.service-status-container {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-height: 0;
+}
+
+#logOutput,
+.stty-output-preview {
+    flex-grow: 1;
+    overflow-y: auto;
+    min-height: 100px;
+    background-color: #e9ecef;
+    padding: 0.75rem;
+    border-radius: 0.25rem;
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.875em;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.status-dot {
+    display: inline-block;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.status-green {
+    background-color: #198754;
+}
+
+.status-yellow {
+    background-color: #ffc107;
+}
+
+.status-red {
+    background-color: #dc3545;
+}
+
+.status-gray {
+    background-color: #6c757d;
+}
+
+.nav-tabs .nav-link {
+    color: #495057;
+    border-bottom-width: 2px;
+}
+
+.nav-tabs .nav-link.active {
+    color: #0d6efd;
+    border-color: #dee2e6 #dee2e6 #fff;
+    font-weight: 500;
+}
+
+.tab-pane {
+    padding-top: 1rem;
+    /* Add some space below tabs */
+}
+
+.modal-custom {
+    display: none;
+    position: fixed;
+    z-index: 1055;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-custom-content {
+    background-color: #fff;
+    margin: 5% auto;
+    padding: 20px;
+    border: 1px solid rgba(0, 0, 0, .2);
+    border-radius: 0.3rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, .15);
+}
+
+.modal-custom-content.modal-sm-custom {
+    max-width: 500px;
+    margin-top: 10%;
+}
+
+.modal-custom-content.modal-lg-custom {
+    max-width: 1000px;
+}
+
+#contentModalBody {
+    max-height: 70vh;
+    white-space: pre-wrap;
+    word-break: break-all;
+    background-color: #e9ecef;
+    border-radius: 0.25rem;
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.modal-header-custom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 1rem;
+}
+
+.modal-title-custom {
+    margin-bottom: 0;
+    line-height: 1.5;
+    font-size: 1.25rem;
+}
+
+.close-custom {
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1;
+    color: #000;
+    text-shadow: 0 1px 0 #fff;
+    opacity: .5;
+    background-color: transparent;
+    border: 0;
+    cursor: pointer;
+}
+
+.close-custom:hover {
+    opacity: .75;
+}

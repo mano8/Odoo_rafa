@@ -1,0 +1,1 @@
+"""Add fast api dependencies"""

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}System Status{% endblock %}
+{% block css_import %}
+<link href="{{ url_for('static', path='css/bootstrap.min.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', path='css/main.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', path='fontawesome/css/fontawesome.min.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', path='fontawesome/css/brands.min.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', path='fontawesome/css/solid.min.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block header %}
+<header class="mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <h1 class="h3 fw-bold text-dark">Odoo 18.0 IoT Box Interface</h1>
+        <div>
+            <button id="btn-shutdown" class="btn btn-danger me-2">
+                <i class="fas fa-power-off me-1"></i> Shutdown
+            </button>
+            <button id="btn-reboot" class="btn btn-danger">
+                <i class="fas fa-sync-alt me-1"></i> Reboot
+            </button>
+        </div>
+    </div>
+</header>
+{% endblock %}
+
+{% block main %}
+{% include 'status_cards/tabs_menu.html' %}
+<div class="tab-content" id="mainTabsContent">
+    <div class="tab-pane fade show active" id="hardware-tab-pane" role="tabpanel" aria-labelledby="hardware-tab"
+        tabindex="0">
+        <main class="row align-items-stretch">
+            {% include 'status_cards/printer_status.html' %}
+            {% include 'status_cards/serial_status.html' %}
+        </main>
+    </div>
+    <div class="tab-pane fade" id="system-tab-pane" role="tabpanel" aria-labelledby="system-tab" tabindex="0">
+        <main class="row align-items-stretch">
+            {% include 'status_cards/services_status.html' %}
+            {% include 'status_cards/system_actions.html' %}
+            {% include 'status_cards/sys_logs.html' %}
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<div id="confirmationModal" class="modal-custom">
+    <div class="modal-custom-content modal-sm-custom text-center">
+        <p id="modalMessage" class="mb-4 h5">¿Está seguro?</p>
+        <div>
+            <button id="modalConfirmBtn" class="btn btn-danger mx-2">Confirmar</button>
+            <button id="modalCancelBtn" class="btn btn-secondary mx-2">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div id="contentModal" class="modal-custom">
+    <div class="modal-custom-content modal-lg-custom">
+        <div class="modal-header-custom">
+            <h2 id="contentModalTitle" class="modal-title-custom">Contenido</h2>
+            <button id="contentModalCloseBtn" type="button" class="close-custom" aria-label="Cerrar">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        <pre id="contentModalBody" class="p-3"></pre>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block js_import %}
+<script src="{{ url_for('static', path='js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', path='js/main.js') }}"></script>
+{% endblock %}

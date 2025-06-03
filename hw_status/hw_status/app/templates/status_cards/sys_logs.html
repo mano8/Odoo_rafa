@@ -1,0 +1,39 @@
+<div class="col-lg-4 d-flex flex-column">
+    <div class="card h-100">
+        <div class="card-body">
+            <h2 class="card-title h5 mb-3">Registros del Sistema</h2>
+            <div class="mb-3">
+                <label for="selectJournal" class="form-label small fw-medium">Servicio (Journal):</label>
+                <select id="selectJournalSystem" class="form-select form-select-sm">
+                    <option value="iotbox.service">iotbox.service</option>
+                    <option value="docker.service">docker.service</option>
+                    <option value="kernel">kernel</option>
+                    <option value="systemd">systemd</option>
+                    <option value="all">Todos los Servicios</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="selectTimeRangeSystem" class="form-label small fw-medium">Rango de Tiempo:</label>
+                <select id="selectTimeRangeSystem" class="form-select form-select-sm">
+                    <option value="5m">Últimos 5 minutos</option>
+                    <option value="15m">Últimos 15 minutos</option>
+                    <option value="1h">Última hora</option>
+                    <option value="today">Hoy</option>
+                    <option value="all">Todo</option>
+                </select>
+            </div>
+            <button id="btnFetchLogsSystem" class="btn btn-secondary w-100 mb-3">
+                <i class="fas fa-file-alt me-2"></i>Obtener Registros
+            </button>
+            <div class="log-output-container">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h3 class="h6 mb-0">Salida de Registros:</h3>
+                    <button id="btnViewFullLogSystem" class="btn btn-sm btn-outline-secondary" style="display: none;">
+                        <i class="fas fa-expand-arrows-alt me-1"></i>Expandir
+                    </button>
+                </div>
+                <pre id="logOutputSystem">Aún no se han obtenido registros.</pre>
+            </div>
+        </div>
+    </div>
+</div>

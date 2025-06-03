@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Odoo 18.0 IoT Box Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            transition: background-color 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .btn-primary {
+            background-color: #4f46e5; /* Indigo */
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #4338ca;
+        }
+        .btn-secondary {
+            background-color: #6b7280; /* Gray */
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+        .btn-danger {
+            background-color: #ef4444; /* Red */
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+        .status-dot {
+            display: inline-block;
+            width: 0.75rem;
+            height: 0.75rem;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        .status-green { background-color: #22c55e; }
+        .status-yellow { background-color: #f59e0b; }
+        .status-red { background-color: #ef4444; }
+        .status-gray { background-color: #9ca3af; }
+
+        /* Custom modal styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 0.5rem;
+            text-align: center;
+        }
+        .modal-buttons button {
+            margin: 0 10px;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <header class="mb-8">
+        <div class="flex justify-between items-center">
+            <h1 class="text-3xl font-bold text-gray-800">Odoo 18.0 IoT Box Interface</h1>
+            <div class="space-x-2">
+                <button id="btn-shutdown" class="btn btn-danger">
+                    <i class="fas fa-power-off mr-1"></i> Shutdown
+                </button>
+                <button id="btn-reboot" class="btn btn-danger">
+                    <i class="fas fa-sync-alt mr-1"></i> Reboot
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-1 space-y-6">
+            <div class="card">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Device Actions</h2>
+                <div class="space-y-3">
+                    <button id="btnPrintDummy" class="btn btn-primary w-full">
+                        <i class="fas fa-print mr-2"></i>Print Dummy Ticket
+                    </button>
+                    <button id="btnOpenCashDrawer" class="btn btn-primary w-full">
+                        <i class="fas fa-cash-register mr-2"></i>Open Cash Drawer
+                    </button>
+                </div>
+                <div id="actionStatus" class="mt-3 text-sm text-gray-600"></div>
+            </div>
+
+            <div class="card">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Device Status</h2>
+                <div class="space-y-2">
+                    <p><span id="printerStatusDot" class="status-dot status-gray"></span>Printer Status: <strong id="printerStatusText">Unknown</strong></p>
+                    <p><span id="paperStatusDot" class="status-dot status-gray"></span>Paper Status: <strong id="paperStatusText">Unknown</strong></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-1">
+            <div class="card">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Port Information</h2>
+                <div id="portInfoContent">
+                    <p class="text-gray-500">Fetching port information...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-1">
+            <div class="card">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">System Logs</h2>
+                <div class="space-y-3">
+                    <div>
+                        <label for="selectJournal" class="block text-sm font-medium text-gray-700">Journal:</label>
+                        <select id="selectJournal" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="iotbox.service">iotbox.service</option>
+                            <option value="kernel">kernel</option>
+                            <option value="systemd">systemd</option>
+                            <option value="all">All Journals</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="selectTimeRange" class="block text-sm font-medium text-gray-700">Time Range:</label>
+                        <select id="selectTimeRange" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="5m">Last 5 minutes</option>
+                            <option value="15m">Last 15 minutes</option>
+                            <option value="1h">Last 1 hour</option>
+                            <option value="today">Today</option>
+                            <option value="all">All Time</option>
+                        </select>
+                    </div>
+                    <button id="btnFetchLogs" class="btn btn-secondary w-full">
+                        <i class="fas fa-file-alt mr-2"></i>Fetch Logs
+                    </button>
+                </div>
+                <div class="mt-4">
+                    <h3 class="text-md font-semibold text-gray-700 mb-2">Log Output:</h3>
+                    <pre id="logOutput" class="bg-gray-100 p-3 rounded-md h-64 overflow-auto text-xs text-gray-800">No logs fetched yet.</pre>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="confirmationModal" class="modal">
+        <div class="modal-content">
+            <p id="modalMessage" class="mb-4 text-lg">Are you sure?</p>
+            <div class="modal-buttons">
+                <button id="modalConfirmBtn" class="btn btn-danger">Confirm</button>
+                <button id="modalCancelBtn" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // DOM Elements
+        const btnPrintDummy = document.getElementById('btnPrintDummy');
+        const btnOpenCashDrawer = document.getElementById('btnOpenCashDrawer');
+        const actionStatus = document.getElementById('actionStatus');
+
+        const printerStatusDot = document.getElementById('printerStatusDot');
+        const printerStatusText = document.getElementById('printerStatusText');
+        const paperStatusDot = document.getElementById('paperStatusDot');
+        const paperStatusText = document.getElementById('paperStatusText');
+
+        const portInfoContent = document.getElementById('portInfoContent');
+
+        const selectJournal = document.getElementById('selectJournal');
+        const selectTimeRange = document.getElementById('selectTimeRange');
+        const btnFetchLogs = document.getElementById('btnFetchLogs');
+        const logOutput = document.getElementById('logOutput');
+
+        const btnShutdown = document.getElementById('btn-shutdown');
+        const btnReboot = document.getElementById('btn-reboot');
+
+        const confirmationModal = document.getElementById('confirmationModal');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+        const modalCancelBtn = document.getElementById('modalCancelBtn');
+        let currentModalAction = null;
+
+
+        // --- Mock API Call Functions ---
+        // Replace these with actual fetch() calls to your FastAPI backend
+
+        async function fetchDeviceStatus() {
+            actionStatus.textContent = 'Fetching device status...';
+            // Simulate API call
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // Mocked response
+            const mockStatus = {
+                printerOnline: Math.random() > 0.2, // 80% chance online
+                paperOk: Math.random() > 0.3, // 70% chance paper OK
+                paperLow: false, // Will refine this
+                devicePortType: 'SERIAL', // For now, always SERIAL
+                serialInfo: {
+                    devfile: '/dev/ttyACM0',
+                    baudrate: 9600,
+                    bytesize: 8,
+                    parity: 'N',
+                    stopbits: 1,
+                    timeout: 1,
+                    dsrdtr: false,
+                    profile: 'default',
+                    readStatus: Math.random() > 0.1 ? 'OK' : 'Error',
+                    writeStatus: Math.random() > 0.1 ? 'OK' : 'Error',
+                    sttyOutput: `speed 9600 baud; rows 0; columns 0; line = 0;\nintr = ^C; quit = ^\\; erase = ^?; kill = ^U; eof = ^D; eol = <undef>;\neol2 = <undef>; swtch = <undef>; start = ^Q; stop = ^S; susp = ^Z; rprnt = ^R;\nwerase = ^W; lnext = ^V; discard = ^O; min = 1; time = 0;\n-parenb -parodd -cmspar cs8 -hupcl -cstopb cread -clocal -crtscts\n-ignbrk -brkint -ignpar -parmrk -inpck -istrip -inlcr -igncr icrnl ixon -ixoff\n-iuclc -ixany -imaxbel iutf8\nopost -olcuc -ocrnl onlcr -onocr -onlret -ofill -ofdel nl0 cr0 tab0 bs0 vt0 ff0\nisig icanon iexten echo echoe echok -echonl -noflsh -xcase -tostop -echoprt\nechoctl echoke -flusho -extproc`
+                },
+                networkInfo: null, // For future use
+                usbInfo: null      // For future use
+            };
+
+            // Update Printer Status
+            if (mockStatus.printerOnline) {
+                printerStatusText.textContent = 'Online';
+                printerStatusDot.className = 'status-dot status-green';
+            } else {
+                printerStatusText.textContent = 'Offline';
+                printerStatusDot.className = 'status-dot status-red';
+            }
+
+            // Update Paper Status
+            if (mockStatus.paperOk) {
+                paperStatusText.textContent = 'OK';
+                paperStatusDot.className = 'status-dot status-green';
+            } else if (mockStatus.paperLow) { // You'd need a specific flag for paper low
+                paperStatusText.textContent = 'Paper Low';
+                paperStatusDot.className = 'status-dot status-yellow';
+            } else {
+                paperStatusText.textContent = 'Paper Out / Error';
+                paperStatusDot.className = 'status-dot status-red';
+            }
+            actionStatus.textContent = 'Status updated.';
+            updatePortInfo(mockStatus.devicePortType, mockStatus);
+        }
+
+        function updatePortInfo(portType, statusData) {
+            portInfoContent.innerHTML = ''; // Clear previous content
+
+            const title = document.createElement('h3');
+            title.className = 'text-md font-semibold text-gray-600 mb-3';
+            title.textContent = `Device Port Type: ${portType}`;
+            portInfoContent.appendChild(title);
+
+            if (portType === 'SERIAL' && statusData.serialInfo) {
+                const info = statusData.serialInfo;
+                const dl = document.createElement('dl');
+                dl.className = 'divide-y divide-gray-200';
+
+                function addDetail(term, definition, status = null) {
+                    const div = document.createElement('div');
+                    div.className = 'py-2 sm:grid sm:grid-cols-3 sm:gap-4';
+                    const dt = document.createElement('dt');
+                    dt.className = 'text-sm font-medium text-gray-500';
+                    dt.textContent = term;
+                    const dd = document.createElement('dd');
+                    dd.className = 'mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2';
+                    
+                    let statusIndicator = '';
+                    if (status === 'OK') {
+                        statusIndicator = '<span class="status-dot status-green ml-2"></span>';
+                    } else if (status === 'Error') {
+                        statusIndicator = '<span class="status-dot status-red ml-2"></span>';
+                    }
+                    dd.innerHTML = `${definition} ${statusIndicator}`;
+
+                    div.appendChild(dt);
+                    div.appendChild(dd);
+                    dl.appendChild(div);
+                }
+
+                addDetail('Device File', info.devfile);
+                addDetail('Read Status', info.readStatus, info.readStatus);
+                addDetail('Write Status', info.writeStatus, info.writeStatus);
+                
+                const configTitle = document.createElement('h4');
+                configTitle.className = 'text-sm font-semibold text-gray-600 mt-4 mb-2';
+                configTitle.textContent = 'Serial Port Configuration (stty):';
+                portInfoContent.appendChild(configTitle);
+
+                const sttyPre = document.createElement('pre');
+                sttyPre.className = 'bg-gray-100 p-2 rounded-md text-xs overflow-auto';
+                sttyPre.textContent = `Baudrate: ${info.baudrate}\nBytesize: ${info.bytesize}\nParity: ${info.parity}\nStopbits: ${info.stopbits}\nTimeout: ${info.timeout}s\nDSR/DTR Flow Control: ${info.dsrdtr}\nProfile: ${info.profile}\n\nRaw stty Output:\n${info.sttyOutput || 'Not available'}`;
+                portInfoContent.appendChild(sttyPre);
+                portInfoContent.appendChild(dl);
+
+
+            } else if (portType === 'NETWORK' && statusData.networkInfo) {
+                // TODO: Implement NETWORK info display
+                portInfoContent.innerHTML += '<p>Network Port Information (Not Implemented Yet)</p>';
+            } else if (portType === 'USB' && statusData.usbInfo) {
+                // TODO: Implement USB info display
+                portInfoContent.innerHTML += '<p>USB Port Information (Not Implemented Yet)</p>';
+            } else {
+                portInfoContent.innerHTML += '<p>No detailed port information available for this type.</p>';
+            }
+        }
+
+
+        async function printDummyTicket() {
+            actionStatus.textContent = 'Printing dummy ticket...';
+            // Simulate API call
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            const success = Math.random() > 0.2; // 80% success
+            if (success) {
+                actionStatus.textContent = 'Dummy ticket printed successfully.';
+            } else {
+                actionStatus.textContent = 'Error printing dummy ticket.';
+            }
+            fetchDeviceStatus(); // Refresh status after action
+        }
+
+        async function openCashDrawer() {
+            actionStatus.textContent = 'Opening cash drawer...';
+            // Simulate API call
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const success = Math.random() > 0.1; // 90% success
+            if (success) {
+                actionStatus.textContent = 'Cash drawer opened successfully.';
+            } else {
+                actionStatus.textContent = 'Error opening cash drawer.';
+            }
+        }
+
+        async function fetchLogs() {
+            logOutput.textContent = 'Fetching logs...';
+            const journal = selectJournal.value;
+            const timeRange = selectTimeRange.value;
+            
+            // Simulate API call
+            // In a real app: `fetch(\`/api/logs?journal=${journal}&time_range=${timeRange}\`)`
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Mocked log data
+            const mockLogs = [
+                `--- Logs for ${journal}, Time: ${timeRange} ---`,
+                `${new Date().toISOString()} [INFO] Log entry 1 for ${journal}.`,
+                `${new Date().toISOString()} [WARN] A warning occurred.`,
+                `${new Date().toISOString()} [DEBUG] Debugging information here.`,
+                `${new Date().toISOString()} [ERROR] An example error message.`,
+                `${new Date().toISOString()} [INFO] Another informational message.`,
+                `--- End of logs ---`
+            ];
+            logOutput.textContent = mockLogs.join('\n');
+        }
+
+        function showModal(message, actionCallback) {
+            modalMessage.textContent = message;
+            currentModalAction = actionCallback;
+            confirmationModal.style.display = 'block';
+        }
+
+        function hideModal() {
+            confirmationModal.style.display = 'none';
+            currentModalAction = null;
+        }
+
+        async function shutdownServer() {
+            hideModal();
+            actionStatus.textContent = 'Sending shutdown command...';
+            // Simulate API call: `fetch('/api/shutdown', { method: 'POST' })`
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            actionStatus.textContent = 'Shutdown command sent. The server might become unresponsive.';
+            // You might want to disable buttons or show a persistent message
+        }
+
+        async function rebootServer() {
+            hideModal();
+            actionStatus.textContent = 'Sending reboot command...';
+            // Simulate API call: `fetch('/api/reboot', { method: 'POST' })`
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            actionStatus.textContent = 'Reboot command sent. The server will restart.';
+        }
+
+        // Event Listeners
+        btnPrintDummy.addEventListener('click', printDummyTicket);
+        btnOpenCashDrawer.addEventListener('click', openCashDrawer);
+        btnFetchLogs.addEventListener('click', fetchLogs);
+
+        btnShutdown.addEventListener('click', () => {
+            showModal('Are you sure you want to shut down the server?', shutdownServer);
+        });
+
+        btnReboot.addEventListener('click', () => {
+            showModal('Are you sure you want to reboot the server?', rebootServer);
+        });
+        
+        modalConfirmBtn.addEventListener('click', () => {
+            if (currentModalAction) {
+                currentModalAction();
+            }
+        });
+
+        modalCancelBtn.addEventListener('click', hideModal);
+
+        // Close modal if clicked outside of it
+        window.onclick = function(event) {
+            if (event.target == confirmationModal) {
+                hideModal();
+            }
+        }
+
+        // Initial Load
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchDeviceStatus(); // Fetch initial status on page load
+        });
+    </script>
+</body>
+</html>

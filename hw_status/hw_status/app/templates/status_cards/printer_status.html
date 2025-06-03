@@ -1,0 +1,26 @@
+<div class="col-lg-4 d-flex flex-column">
+    <div class="card mb-3">
+        <div class="card-body">
+            <h2 class="card-title h5 mb-3">Acciones de Dispositivo</h2>
+            <button id="btnPrintDummy" class="btn btn-primary w-100 mb-2">
+                <i class="fas fa-print me-2"></i>Imprimir Ticket de Prueba
+            </button>
+            <button id="btnOpenCashDrawer" class="btn btn-primary w-100">
+                <i class="fas fa-cash-register me-2"></i>Abrir Cajón
+            </button>
+            <div id="actionStatus" class="mt-3 text-muted small"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <h2 class="card-title h5 mb-3">Estado del Dispositivo</h2>
+            <p><span id="connectionStatusDot" class="status-dot status-gray"></span>Estado Conexión: <strong
+                    id="connectionStatusText">Desconocido</strong></p>
+            <p><span id="printerStatusDot" class="status-dot status-gray"></span>Estado Impresora: <strong
+                    id="printerStatusText">Desconocido</strong></p>
+            <p><span id="paperStatusDot" class="status-dot status-gray"></span>Estado Papel: <strong
+                    id="paperStatusText">Desconocido</strong></p>
+        </div>
+    </div>
+</div>

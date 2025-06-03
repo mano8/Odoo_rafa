@@ -1,0 +1,5 @@
+py_hw_proxy/*
+*.env*
+*__pycache__/*
+wheelhouse/*
+wheelhouse_dev/*
