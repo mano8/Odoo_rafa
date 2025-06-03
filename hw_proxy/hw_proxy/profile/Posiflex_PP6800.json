@@ -1,0 +1,53 @@
+{
+  "profiles": {
+    "Posiflex_PP_6800": {
+      "name": "Posiflex_PP_6800",
+      "vendor": "Posiflex",
+      "notes": "Custom profile for Posiflex PP-6800 thermal printer.",
+      "features": {
+        "barcodeA": true,
+        "barcodeB": true,
+        "bitImageRaster": true,
+        "bitImageColumn": true,
+        "graphics": true,
+        "starCommands": false,
+        "qrCode": true,
+        "pdf417Code": false,
+        "highDensity": true,
+        "pulseStandard": true,
+        "pulseBel": false,
+        "paperFullCut": true,
+        "paperPartCut": true
+      },
+      "colors": {
+        "0": "black"
+      },
+      "fonts": {
+        "0": {
+          "name": "Font A",
+          "columns": 42
+        },
+        "1": {
+          "name": "Font B",
+          "columns": 56
+        }
+      },
+      "media": {
+        "width": {
+          "mm": 80,
+          "pixels": 576
+        },
+        "dpi": 203
+      },
+      "codePages": {
+        "0": "CP437",
+        "1": "CP850",
+        "2": "CP858",
+        "3": "CP860",
+        "4": "CP863",
+        "5": "CP865",
+        "16": "CP1252"
+      }
+    }
+  }
+}
