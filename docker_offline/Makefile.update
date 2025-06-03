@@ -1,0 +1,15 @@
+# /opt/Odoo_rafa/docker_offline/Makefile.update
+
+SUDO ?= sudo
+
+.PHONY: all pull build save load
+all: pull build save load
+
+include Makefile.prepare
+
+load:
+	@echo "Loading tarballs into local Docker…"
+	$(SUDO) docker load -i traefik_v3.4.0.tar
+	$(SUDO) docker load -i postgres_13.21-alpine3.20.tar
+	$(SUDO) docker load -i odoo_18.0.tar
+	$(SUDO) docker load -i python-3.11-fat.tar
