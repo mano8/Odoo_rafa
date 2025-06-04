@@ -1,7 +1,7 @@
 [Unit]
 Description=Odoo POS Docker Compose Stack
-Requires=serial-config.service docker.service
-After=network-online.target serial-config.service docker.service
+Requires=docker.service
+After=network-online.target docker.service
 Wants=network-online.target
 
 [Service]

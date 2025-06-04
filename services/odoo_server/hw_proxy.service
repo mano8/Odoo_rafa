@@ -5,9 +5,9 @@ After=network.target
 [Service]
 User=hw_user
 Group=hw_user
-WorkingDirectory=/opt/hw_proxy/hw_proxy
+WorkingDirectory=/opt/hw_proxy
 Environment="PATH=/opt/hw_proxy/.venv/bin"
-ExecStart=/opt/hw_proxy/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 9001 --workers 2 --log-level info
+ExecStart=/opt/hw_proxy/.venv/bin/uvicorn hw_proxy.main:app --host 0.0.0.0 --port 9002 --workers 2 --log-level info
 Restart=always
 RestartSec=5s
 StandardOutput=journal
@@ -15,12 +15,8 @@ StandardError=journal
 SyslogIdentifier=hw_proxy
 
 # Security hardening (recommended)
-PrivateTmp=true
-ProtectSystem=full
-ProtectHome=true
-NoNewPrivileges=true
-CapabilityBoundingSet=CAP_NET_BIND_SERVICE
-AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SETUID CAP_SETGID CAP_SYS_ADMIN
+AmbientCapabilities=CAP_NET_BIND_SERVICE CAP_SETUID CAP_SETGID CAP_SYS_ADMIN
 
 [Install]
 WantedBy=multi-user.target

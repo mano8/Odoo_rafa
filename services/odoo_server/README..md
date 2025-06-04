@@ -5,7 +5,7 @@
 - Add service to `systemd`
 
 ```bash
-sudo cp services/odoo_server/hw_proxy.service /etc/systemd/system/hw_proxy.service
+sudo cp /opt/Odoo_rafa/services/odoo_server/hw_proxy.service /etc/systemd/system/hw_proxy.service
 ```
 
 - Enable it
@@ -20,8 +20,8 @@ sudo systemctl start hw_proxy.service
 - Check status
 
 ```bash
-sudo systemctl status serial-config.service
-sudo journalctl -xeu serial-config.service
+sudo systemctl status hw_proxy.service
+sudo journalctl -xeu hw_proxy.service
 ```
 
 ## 1. Auto configure ttyACM0 port for PP6800 printer
@@ -72,7 +72,7 @@ And all containers must have:
 - Add service to `systemd`
 
 ```bash
-sudo cp services/odoo_server/odoo-pos.service /etc/systemd/system/odoo-pos.service
+sudo cp /opt/Odoo_rafa/services/odoo_server/odoo-pos.service /etc/systemd/system/odoo-pos.service
 ```
 
 
