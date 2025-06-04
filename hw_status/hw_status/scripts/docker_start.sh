@@ -14,7 +14,7 @@ if [ "$VSCODE_DEBUG" = "true" ]; then
         exit 1  # Ensure the script exits if needed
     fi
 else
-    if ! uvicorn hw_status.main:app --host 0.0.0.0 --port 8015 --reload --proxy-headers; then
+    if ! uvicorn hw_status.main:app --host 0.0.0.0 --port 8015 --reload --proxy-headers --forwarded-allow-ips "*"; then
         echo "Uvicorn failed to start. Dropping to a shell for debugging."
         exit 1  # Ensure the script exits if needed
     fi
