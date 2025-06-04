@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# List of font URLs to download
+# List of font URLs to download (as provided by user)
 FONT_URLS=(
   "https://fonts.odoocdn.com/fonts/noto/NotoSans-LigIta.woff"
   "https://fonts.odoocdn.com/fonts/noto/NotoSansHebrew-BolIta.woff"
@@ -59,6 +59,7 @@ FONT_URLS=(
 )
 
 DOWNLOAD_DIR="downloaded_fonts"
+GOOGLE_FONTS_URL="https://fonts.google.com"
 
 # Create the download directory if it doesn't exist
 mkdir -p "$DOWNLOAD_DIR"
@@ -69,14 +70,48 @@ echo "Starting font downloads to $DOWNLOAD_DIR..."
 for url in "${FONT_URLS[@]}"; do
   echo "Attempting to download: $url"
   
+  # Extract filename for user messages and potential saving
+  filename=$(basename "$url")
+
   # Use wget with --continue to resume partial downloads, --quiet for less output,
-  # and --directory-prefix to save to a specific folder.
-  # The '|| true' ensures the script doesn't exit on a non-zero exit code (like 404).
-  wget --continue --quiet --directory-prefix="$DOWNLOAD_DIR" "$url" || {
-    echo "  WARN: Failed to download $url (might be a 404 or other error, but continuing)."
+  # --timeout and --tries for robustness, and --directory-prefix.
+  # The '||' block is executed if wget returns a non-zero exit code (e.g., 404).
+  wget --continue --quiet --timeout=15 --tries=2 --directory-prefix="$DOWNLOAD_DIR" "$url" || {
+    # Check if the failed URL is from odoocdn
+    if [[ "$url" == *"fonts.odoocdn.com"* ]]; then
+      # Suggestion for Google Fonts
+      font_name_suggestion="${filename%.*}" # Removes extension, e.g., NotoSansHebrew-BolIta
+      
+      # Basic parsing for a more user-friendly suggestion (can be expanded)
+      # Example: NotoSansHebrew-BolIta -> Noto Sans Hebrew Bold Italic
+      parsed_suggestion="$font_name_suggestion"
+      parsed_suggestion="${parsed_suggestion/NotoSansArabic/Noto Sans Arabic}"
+      parsed_suggestion="${parsed_suggestion/NotoSansHebrew/Noto Sans Hebrew}"
+      parsed_suggestion="${parsed_suggestion/NotoSans/Noto Sans}"
+      # Weights
+      parsed_suggestion="${parsed_suggestion/-Reg/ Regular}"
+      parsed_suggestion="${parsed_suggestion/-Bol/ Bold}"
+      parsed_suggestion="${parsed_suggestion/-Lig/ Light}"
+      parsed_suggestion="${parsed_suggestion/-Bla/ Black}"
+      parsed_suggestion="${parsed_suggestion/-Hai/ Hairline}"
+      # Styles
+      parsed_suggestion="${parsed_suggestion/Ita/ Italic}"
+      # Clean up potential double spaces from replacements
+      parsed_suggestion=$(echo "$parsed_suggestion" | tr -s ' ')
+
+
+      echo "  WARN: Failed to download $url from odoocdn."
+      echo "  INFO: Please try to find a font matching '$parsed_suggestion' (based on filename '$filename')"
+      echo "        from $GOOGLE_FONTS_URL."
+      echo "        Download the .woff2 (recommended) or original format and place it in '$DOWNLOAD_DIR' as '$filename'."
+    else
+      # Generic warning for non-odoocdn URLs, if any were in the list
+      echo "  WARN: Failed to download $url (might be a 404 or other error, but continuing)."
+    fi
   }
 done
 
+echo ""
 echo "All download attempts completed."
-echo "Check the '$DOWNLOAD_DIR' directory for downloaded fonts."
+echo "Check the '$DOWNLOAD_DIR' directory for downloaded fonts and any warnings above for manual fallbacks."
 exit 0
