@@ -1,6 +1,392 @@
 // static/src/scss/pos_individual_receipt.scss
 // Odoo will compile this to CSS.
 
+// --- NotoSans (Generic - Latin, Greek, Cyrillic, etc.) ---
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Reg.woff') format('woff'); // Assuming .woff if .woff2 not specified for this one
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Reg.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-RegIta.woff') format('woff');
+  font-weight: 400;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-RegIta.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Bol.woff') format('woff'); // Assuming .woff if .woff2 not specified
+  font-weight: 700;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Bol.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-BolIta.woff') format('woff');
+  font-weight: 700;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-BolIta.ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Lig.woff') format('woff');
+  font-weight: 300;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Lig.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-LigIta.woff') format('woff');
+  font-weight: 300;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-LigIta.ttf') format('truetype');
+  font-weight: 300;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Bla.woff') format('woff');
+  font-weight: 900;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Bla.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-BlaIta.woff') format('woff');
+  font-weight: 900;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-BlaIta.ttf') format('truetype');
+  font-weight: 900;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Hai.woff') format('woff');
+  font-weight: 100; // Hairline
+  font-style: normal;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Hai.ttf') format('truetype');
+  font-weight: 100;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-HaiIta.woff') format('woff'); // Assuming HaiIta exists
+  font-weight: 100;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-HaiIta.ttf') format('truetype');
+  font-weight: 100;
+  font-style: italic;
+}
+
+// --- NotoSansArabic ---
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-Reg.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-Reg.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-RegIta.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-Bol.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-Bol.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-BolIta.woff') format('woff');
+  font-weight: 700;
+  font-style: italic;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-BolIta.ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-Lig.woff') format('woff');
+  font-weight: 300;
+  font-style: normal;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-Lig.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-LigIta.woff') format('woff');
+  font-weight: 300;
+  font-style: italic;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-LigIta.ttf') format('truetype');
+  font-weight: 300;
+  font-style: italic;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-Bla.woff') format('woff');
+  font-weight: 900;
+  font-style: normal;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-Bla.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-BlaIta.woff') format('woff');
+  font-weight: 900;
+  font-style: italic;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-BlaIta.ttf') format('truetype');
+  font-weight: 900;
+  font-style: italic;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-Hai.woff') format('woff');
+  font-weight: 100;
+  font-style: normal;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-Hai.ttf') format('truetype');
+  font-weight: 100;
+  font-style: normal;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-HaiIta.woff') format('woff');
+  font-weight: 100;
+  font-style: italic;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-HaiIta.ttf') format('truetype');
+  font-weight: 100;
+  font-style: italic;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
+// --- NotoSansHebrew ---
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-Reg.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-Reg.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-RegIta.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-Bol.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-Bol.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-BolIta.woff') format('woff');
+  font-weight: 700;
+  font-style: italic;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-BolIta.ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-Lig.woff') format('woff');
+  font-weight: 300;
+  font-style: normal;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-Lig.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-LigIta.ttf') format('truetype');
+  font-weight: 300;
+  font-style: italic;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-Bla.woff') format('woff');
+  font-weight: 900;
+  font-style: normal;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-Bla.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-BlaIta.woff') format('woff');
+  font-weight: 900;
+  font-style: italic;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-BlaIta.ttf') format('truetype');
+  font-weight: 900;
+  font-style: italic;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-Hai.woff') format('woff');
+  font-weight: 100;
+  font-style: normal;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-Hai.ttf') format('truetype');
+  font-weight: 100;
+  font-style: normal;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-HaiIta.woff') format('woff');
+  font-weight: 100;
+  font-style: italic;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: 'NotoSansLocal';
+  src: url('https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-HaiIta.ttf') format('truetype');
+  font-weight: 100;
+  font-style: italic;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+}
+
+
 .print-product-tickets-button {
     // Custom styles for your button if needed
 }
