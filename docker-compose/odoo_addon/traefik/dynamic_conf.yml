@@ -16,12 +16,12 @@ http:
       service: odoo-service
     #  tls: {}
 
-    # HwProxy Service router
-    hw-proxy-router:
+    # Hw_status Service router
+    hw-status-router:
       entryPoints:
         - hw
       rule: "PathPrefix(`/hw_status`)"
-      service: hw-proxy-service
+      service: hw-status-service
     #  tls: {}
 
   services:
@@ -29,7 +29,7 @@ http:
       loadBalancer:
         servers:
           - url: "http://fiesta_odoo:8069"
-    hw-proxy-service:
+    hw-status-service:
       loadBalancer:
         servers:
           - url: "http://hw_status_service:8015"
