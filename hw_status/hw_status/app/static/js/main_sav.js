@@ -19,6 +19,22 @@ const App = {
         paperStatusText: document.getElementById('paperStatusText'),
         portInfoContent: document.getElementById('portInfoContent'),
 
+        // System Tab
+        systemServicesLoader: document.getElementById('systemServicesLoader'),
+        dockerStatusDot: document.getElementById('dockerStatusDot'),
+        dockerStatusText: document.getElementById('dockerStatusText'),
+        hwProxyStatusDot: document.getElementById('hwProxyStatusDot'),
+        hwProxyStatusText: document.getElementById('hwProxyStatusText'),
+        btnDownloadDb: document.getElementById('btnDownloadDb'),
+        btnRestartDocker: document.getElementById('btnRestartDocker'),
+        btnStopDockerCompose: document.getElementById('btnStopDockerCompose'),
+        systemActionStatus: document.getElementById('systemActionStatus'),
+        selectJournalSystem: document.getElementById('selectJournalSystem'),
+        selectTimeRangeSystem: document.getElementById('selectTimeRangeSystem'),
+        btnFetchLogsSystem: document.getElementById('btnFetchLogsSystem'),
+        logOutputSystem: document.getElementById('logOutputSystem'),
+        btnViewFullLogSystem: document.getElementById('btnViewFullLogSystem'),
+
         // Global
         btnShutdown: document.getElementById('btn-shutdown'),
         btnReboot: document.getElementById('btn-reboot'),
@@ -247,10 +263,34 @@ const App = {
         }
     },
 
+    SystemStatusManager: {
+        _showLoader() { App.UI.systemServicesLoader.style.display = 'inline-block'; },
+        _hideLoader() { App.UI.systemServicesLoader.style.display = 'none'; },
+        async fetchAndDisplayStatus() {
+            this._showLoader();
+            App.UI.systemActionStatus.textContent = 'Actualizando estado de servicios...';
+            try {
+                const status = await App.API.getSystemStatus();
+                App.UI.dockerStatusText.textContent = status.dockerRunning ? 'Activo' : 'Inactivo';
+                App.UI.dockerStatusDot.className = `status-dot ${status.dockerRunning ? 'status-green' : 'status-red'}`;
+                App.UI.hwProxyStatusText.textContent = status.hwProxyRunning ? 'Activo' : 'Inactivo';
+                App.UI.hwProxyStatusDot.className = `status-dot ${status.hwProxyRunning ? 'status-green' : 'status-red'}`;
+                App.UI.systemActionStatus.textContent = 'Estado de servicios actualizado.';
+            } catch (error) {
+                App.UI.systemActionStatus.textContent = 'Error al actualizar estado de servicios.';
+                App.UI.dockerStatusText.textContent = 'Error'; App.UI.dockerStatusDot.className = 'status-dot status-red';
+                App.UI.hwProxyStatusText.textContent = 'Error'; App.UI.hwProxyStatusDot.className = 'status-dot status-red';
+            } finally {
+                this._hideLoader();
+            }
+        }
+    },
+
     StatusManager: { // General orchestrator
         async updateAll() {
             // No auto-update logic here, just initial fetch or general refresh trigger
             await App.HardwareStatusManager.fetchAndDisplayStatus();
+            await App.SystemStatusManager.fetchAndDisplayStatus();
         }
     },
 
@@ -345,6 +385,26 @@ const App = {
             App.UI.actionStatus.textContent = success ? 'Cajón abierto correctamente.' : 'Error al abrir cajón.';
             App.UI.actionStatus.className = `mt-3 small ${success ? 'text-success' : 'text-danger'}`;
         },
+        async downloadDb() {
+            App.UI.systemActionStatus.textContent = 'Iniciando descarga de base de datos...';
+            const response = await App.API.downloadDb();
+            App.UI.systemActionStatus.textContent = response.message;
+            App.UI.systemActionStatus.className = `mt-3 small ${response.success ? 'text-success' : 'text-danger'}`;
+        },
+        async restartDocker() {
+            App.UI.systemActionStatus.textContent = 'Reiniciando contenedores Docker...';
+            const response = await App.API.restartDocker();
+            App.UI.systemActionStatus.textContent = response.message;
+            App.UI.systemActionStatus.className = `mt-3 small ${response.success ? 'text-warning' : 'text-danger'}`;
+            await App.SystemStatusManager.fetchAndDisplayStatus(); // Actualizar estado después de la acción
+        },
+        async stopDockerCompose() {
+            App.UI.systemActionStatus.textContent = 'Deteniendo Docker Compose...';
+            const response = await App.API.stopDockerCompose();
+            App.UI.systemActionStatus.textContent = response.message;
+            App.UI.systemActionStatus.className = `mt-3 small ${response.success ? 'text-danger' : 'text-danger'}`;
+            await App.SystemStatusManager.fetchAndDisplayStatus(); // Actualizar estado después de la acción
+        },
         async shutdownServer() {
             App.ModalManager.hideConfirmation(); App.UI.actionStatus.textContent = 'Enviando comando de apagado...';
             const success = await App.API.shutdown();
@@ -365,6 +425,14 @@ const App = {
         App.UI.btnPrintDummy.addEventListener('click', App.ActionHandler.printDummyTicket);
         App.UI.btnOpenCashDrawer.addEventListener('click', App.ActionHandler.openCashDrawer);
 
+        // System Tab
+        App.UI.btnDownloadDb.addEventListener('click', App.ActionHandler.downloadDb);
+        App.UI.btnRestartDocker.addEventListener('click', App.ActionHandler.restartDocker);
+        App.UI.btnStopDockerCompose.addEventListener('click', App.ActionHandler.stopDockerCompose);
+        App.UI.btnFetchLogsSystem.addEventListener('click', App.LogManager.fetchAndDisplaySystemLogs);
+        App.UI.btnViewFullLogSystem.addEventListener('click', () =>
+            App.ModalManager.showContent(App.State.fullLogContentSystem ? 'Registro Completo del Sistema' : 'Registro del Sistema', App.State.fullLogContentSystem || 'No hay contenido de registro.')
+        );
 
         // Global
         App.UI.btnShutdown.addEventListener('click', () => App.ModalManager.showConfirmation('¿Está seguro que desea apagar el servidor?', App.ActionHandler.shutdownServer));
@@ -379,11 +447,14 @@ const App = {
         };
 
         // Initial Load & Start Auto-Update for Hardware
+        App.SystemStatusManager.fetchAndDisplayStatus(); // Fetch system status once
         App.HardwareStatusManager.fetchAndDisplayStatus(); // Initial fetch for hardware
         App.HardwareStatusManager.startAutoUpdate(); // Start auto-update cycle for hardware
 
+        App.UI.logOutputSystem.textContent = 'Aún no se han obtenido registros.';
         App.UI.portInfoContent.innerHTML = '<p class="text-muted">Obteniendo información del puerto...</p>';
         App.UI.actionStatus.textContent = ''; // Clear initial messages
+        App.UI.systemActionStatus.textContent = '';
     }
 };
 document.addEventListener('DOMContentLoaded', App.init);
