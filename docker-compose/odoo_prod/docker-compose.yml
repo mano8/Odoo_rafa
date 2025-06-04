@@ -40,26 +40,22 @@ services:
     networks:
       - odoo_network
 
-  hw_proxy_service:
+  hw_status_service:
     build:
-      context: ../../hw_proxy
-      dockerfile: ./hw_proxy/Dockerfile
+      context: ../../hw_status
+      dockerfile: ./hw_status/Dockerfile.offline
     env_file:
-      - ./hw_proxy.env
+      - ./hw_status.env
     environment:
       ENVIRONMENT: development
       SET_OPEN_API: true
       SET_DOCS: true
       SET_REDOC: true
       PRINTER_KEY: "PP6800"
-    userns_mode: "host"
-    devices:
-      - /dev/ttyACM0:/dev/ttyACM0
-    group_add:
-      - dialout
     volumes:
-      - ../../hw_proxy/hw_proxy:/opt/hw_proxy
-      - ./hw_proxy.env:/opt/hw_proxy/.env:ro
+      - ../../hw_status/hw_status:/opt/hw_status
+      - ./hw_status.env:/opt/hw_status/.env:ro
+    userns_mode: "host"
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.hw-proxy.loadbalancer.server.port=8015"
