@@ -26,12 +26,20 @@ http:
       service: odoo-service
       tls: {}
 
-    # HwProxy Service router
+    # Hw_proxy Service router
     hw-proxy-router:
       entryPoints:
         - hw
       rule: "(Host(`traefik-client.local`) || Host(`192.168.1.146`) || Host(`127.0.0.1`)) && PathPrefix(`/hw_proxy`)"
       service: hw-proxy-service
+      tls: {}
+
+    # Hw_status Service router
+    hw-status-router:
+      entryPoints:
+        - hw
+      rule: "(Host(`traefik-client.local`) || Host(`192.168.1.146`) || Host(`127.0.0.1`)) && PathPrefix(`/hw_status`)"
+      service: hw-status-service
       tls: {}
 
   services:
@@ -42,7 +50,11 @@ http:
     hw-proxy-service:
       loadBalancer:
         servers:
-          - url: "http://hw_proxy_service:8015"
+          - url: "http://192.168.1.146:9002"
+    hw-status-service:
+      loadBalancer:
+        servers:
+          - url: "http://hw_status_service:8015"
 
   middlewares:
     ip-allowlist:

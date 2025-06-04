@@ -2,13 +2,7 @@
 log:
   level: DEBUG
 
-api:
-  dashboard: true
-  insecure: true
 
-hw:
-  dashboard: true
-  insecure: true
 
 providers:
   docker:
@@ -34,3 +28,5 @@ entryPoints:
   hw:
     address: ":9001"
     http3: {}
+    forwardedHeaders:
+      insecure: true
