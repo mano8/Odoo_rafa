@@ -1,7 +1,13 @@
 <div class="col-lg-4 d-flex flex-column">
-    <div class="card h-100">
+    <div class="card h-100 hardware-status-section">
         <div class="card-body">
-            <h2 class="card-title h5 mb-3">Información del Puerto</h2>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="card-title h5 mb-0">Información del Puerto</h2>
+                <div class="spinner-border spinner-border-sm text-primary loading-spinner" role="status"
+                    id="portInfoLoader">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
             <div id="portInfoContent" class="d-flex flex-column flex-grow-1">
                 <p class="text-muted">Obteniendo información del puerto...</p>
             </div>

@@ -49,6 +49,13 @@
             {% include 'status_cards/serial_status.html' %}
         </main>
     </div>
+    <div class="tab-pane fade" id="system-tab-pane" role="tabpanel" aria-labelledby="system-tab" tabindex="0">
+        <main class="row align-items-stretch">
+            {% include 'status_cards/services_status.html' %}
+            {% include 'status_cards/system_actions.html' %}
+            {% include 'status_cards/sys_logs.html' %}
+        </main>
+    </div>
 </div>
 {% endblock %}
 

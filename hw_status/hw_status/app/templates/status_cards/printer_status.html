@@ -12,9 +12,15 @@
         </div>
     </div>
 
-    <div class="card">
+    <div class="card hardware-status-section">
         <div class="card-body">
-            <h2 class="card-title h5 mb-3">Estado del Dispositivo</h2>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="card-title h5 mb-0">Estado del Dispositivo</h2>
+                <div class="spinner-border spinner-border-sm text-primary loading-spinner" role="status"
+                    id="deviceStatusLoader">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
             <p><span id="connectionStatusDot" class="status-dot status-gray"></span>Estado Conexión: <strong
                     id="connectionStatusText">Desconocido</strong></p>
             <p><span id="printerStatusDot" class="status-dot status-gray"></span>Estado Impresora: <strong
