@@ -1,3 +1,3 @@
 #!/bin/bash
-/sbin/shutdown -h now
+/usr/sbin/shutdown -h now
 exit 0

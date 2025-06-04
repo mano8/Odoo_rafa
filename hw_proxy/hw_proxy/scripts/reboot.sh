@@ -1,3 +1,3 @@
 #!/bin/bash
-/sbin/reboot -h now
+/usr/sbin/reboot -h now
 exit 0

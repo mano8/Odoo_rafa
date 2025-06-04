@@ -18,7 +18,7 @@ logger = logging.getLogger("hw_proxy")
 
 # Networks you trust
 TRUSTED_NETWORKS = [
-    ip_network("172.18.0.0/16"),
+    ip_network("172.16.0.0/12"),
     ip_network("192.168.1.0/24"),
     ip_network("127.0.0.0/16")
 ]

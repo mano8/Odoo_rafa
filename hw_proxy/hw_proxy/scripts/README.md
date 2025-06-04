@@ -10,7 +10,7 @@ Here user who run `hw_proxy` service is `hw_user`.
 Add Permission to run bash scripts as `root` without password
 
 ```bash
-sudo visudo /etc/sudoers.d/zepos
+sudo visudo /etc/sudoers.d/hw_user
 ```
 
 ```
@@ -19,9 +19,7 @@ Defaults:hw_user !requiretty
 
 hw_user ALL=(root) NOPASSWD: \
     /opt/hw_proxy/hw_proxy/scripts/reboot.sh, \
-    /opt/hw_proxy/hw_proxy/scripts/shutdown.sh, \
-    /opt/hw_proxy/hw_proxy/scripts/docker_restart_container.sh, \
-    /opt/hw_proxy/hw_proxy/scripts/update_hw_proxy.sh
+    /opt/hw_proxy/hw_proxy/scripts/shutdown.sh
 ```
 
 Verrify

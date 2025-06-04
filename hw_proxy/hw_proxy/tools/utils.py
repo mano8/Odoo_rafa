@@ -1,6 +1,7 @@
 """
 Hw_proxy utils
 """
+import logging
 import os
 from os.path import join as Pjoin
 import termios
@@ -11,6 +12,8 @@ from dateutil.parser import parse as dateparse
 from hw_proxy.core.exceptions import HwHardwareError
 from hw_proxy.tools.pos_helper import EscPosHelper
 from hw_proxy.core.config import settings
+
+logger = logging.getLogger("hw_proxy")
 
 BASH_SCRIPT_PATH = "/opt/Odoo_rafa/hw_proxy/hw_proxy/scripts/"
 # A mapping from termios speed constants → integer baud rates
@@ -60,14 +63,19 @@ class HwUtils:
         """Run bash script"""
         script_path = Pjoin(BASH_SCRIPT_PATH, script)
         if with_sudo is True:
-            cmd = ["sudo", script_path]
+            cmd = ["/usr/bin/sudo", script_path]
         else:
             cmd = [script_path]
         if args:
             cmd += args
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
+            logger.error(
+                "[run_bash_script] An error ocurrent on run "
+                f"subprocess, error: {result.stderr.strip()}"
+            )
             raise RuntimeError(f"Error: {result.stderr.strip()}")
+
         return result.stdout.strip()
 
     @staticmethod
@@ -85,7 +93,11 @@ class HwUtils:
             else:
                 # try to parse ISO date
                 return dateparse(s)
-        except Exception:
+        except Exception as e:
+            logger.error(
+                "[parse_relative_time] Unable to parse relative time "
+                f"error: {str(e)}"
+            )
             return None
 
     @staticmethod
@@ -150,7 +162,11 @@ class HwUtils:
         """Get posiflex connexion status"""
         result = None
         try:
-            result = subprocess.run(["lsusb"], capture_output=True, text=True)
+            result = subprocess.run(
+                ["/usr/bin/lsusb"],
+                capture_output=True,
+                text=True
+            )
             if result.returncode != 0:
                 result = {
                     "status": "error",
