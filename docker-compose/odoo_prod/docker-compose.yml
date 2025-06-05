@@ -71,6 +71,7 @@ services:
       - ./odoo/data:/var/lib/odoo
       - ./odoo/config:/etc/odoo
       - ./odoo/addons:/mnt/extra-addons
+      - ./odoo/fonts.scss:/usr/lib/python3/dist-packages/odoo/addons/web/static/fonts/fonts.scss
     links:
       - "fiesta_db:db"
     labels:
@@ -81,13 +82,15 @@ services:
         export PGPASSWORD="$DB_PASSWORD"
         if psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_DATABASE" -tAc "SELECT 1 FROM res_users LIMIT 1;" 2>/dev/null | grep -q 1; then
           echo "Database odoo exists, starting normally...";
-          exec odoo --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD";
+          exec odoo --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD" -u pos_indv_receipt --dev=css;
         else
           echo "Database odoo missing — initializing with -i base...";
           exec odoo -i base --without-demo=True --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD" --stop-after-init &&
           exec odoo --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD";
         fi
       '
+    extra_hosts:
+      - "fonts.odoo.com:192.168.1.146"
     logging:
       driver: "journald"
     depends_on:

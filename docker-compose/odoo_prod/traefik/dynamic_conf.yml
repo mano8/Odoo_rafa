@@ -17,7 +17,6 @@ http:
 
   # 1) Dashboard router — only on websecure, only from localhost
   routers:
-    
     # Odoo-Service router
     odoo-router:
       entryPoints:
