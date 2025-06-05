@@ -1,0 +1,208 @@
+$disable_odoocdn_fonts: true !default;
+
+/* Override & empty out all Odoo “lato-font” mixins */
+@mixin lato-font($type, $weight, $style) {}
+
+/* Override the “pair” mixin as well */
+@mixin lato-font-pair($type, $weight) {}
+
+/* Override & empty out all Odoo “google-font” mixins */
+@mixin google-font($family, $type, $weight, $style) {}
+
+@mixin google-font-pair($family) {}
+
+$font-path-inter: "https://192.168.1.146:9001/hw_status/static/fonts/inter/";
+$font-path-roboto: "https://192.168.1.146:9001/hw_status/static/fonts/roboto/";
+$font-path-noto: "https://192.168.1.146:9001/hw_status/static/fonts/noto/";
+
+/* Hairline (100 normal) */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Hai.woff") format("woff");
+}
+
+/* Hairline Italic (100 italic) → fallback to Hairline normal */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: italic;
+  font-weight: 100;
+  font-display: swap;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Hai.woff") format("woff");
+}
+
+/* Light (300 normal) */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Lig.woff") format("woff");
+}
+
+/* Light Italic (300 italic) → fallback to Light normal */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: italic;
+  font-weight: 300;
+  font-display: swap;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Lig.woff") format("woff");
+}
+
+/* Regular (400 normal) */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Reg.woff") format("woff");
+}
+
+/* Regular Italic (400 italic) */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-RegIta.woff") format("woff");
+}
+
+/* Bold Italic (700 italic) */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-BolIta.woff") format("woff");
+}
+
+/* Black (900 normal) */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Bla.woff") format("woff");
+}
+
+/* Black Italic (900 italic) */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: italic;
+  font-weight: 900;
+  font-display: swap;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-BlaIta.woff") format("woff");
+}
+
+/* ----- Arabic (use latin-fallback files if you don’t have separate Arabic weights) ----- */
+/* Arabic Hairline (100 normal) → fallback to Latin Hairline */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Hai.woff") format("woff");
+}
+
+/* Arabic Light (300 normal) → fallback to Latin Light */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Lig.woff") format("woff");
+}
+
+/* Arabic Regular (400 normal) → fallback to Latin Regular */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Reg.woff") format("woff");
+}
+
+/* Arabic Bold (700 normal) → fallback to Latin Bold */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Bol.woff") format("woff");
+}
+
+/* Arabic Black (900 normal) */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSansArabic-Bla.woff") format("woff");
+}
+
+/* ----- Hebrew (use latin-fallback files if you don’t have separate Hebrew weights) ----- */
+/* Hebrew Hairline (100 normal) → fallback to Latin Hairline */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSans-Hai.woff") format("woff");
+}
+
+/* Hebrew Light (300 normal) */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-Lig.woff") format("woff");
+}
+
+/* Hebrew Regular (400 normal) */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-Reg.woff") format("woff");
+}
+
+/* Hebrew Bold (700 normal) */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-Bol.woff") format("woff");
+}
+
+/* Hebrew Black (900 normal) */
+@font-face {
+  font-family: "Odoo Unicode Support Noto";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F;
+  src: url("https://192.168.1.146:9001/hw_status/static/fonts/NotoSansHebrew-Bla.woff") format("woff");
+}
+
+/* 3) Finally, ensure Odoo text uses your “NotoSansLocal” if you still want to override body, etc. */
+
+body,
+.o_main,
+.o_content,
+.o_report_print {
+  font-family: 'Odoo Unicode Support Noto', sans-serif !important;
+}
