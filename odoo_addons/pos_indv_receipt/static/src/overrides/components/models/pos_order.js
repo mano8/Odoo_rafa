@@ -42,6 +42,7 @@ patch(PosOrder.prototype, {
             baseUrl,
             {
                 ...headerData,
+                printIndividualDetalledReceipt: printIndividualDetalledReceipt,
                 printFullClientReceipt: printFullClientReceipt,
                 printCachierReceipt: printCachierReceipt,
                 label_customer_recept: _t("Customer Receipt"),
@@ -90,7 +91,7 @@ patch(PosOrder.prototype, {
                         qty: "1,00"
                     }
                 });
-
+        console.log("Order lines: ", order_lines)
         return {
             ...print_data,
             orderlines: order_lines,

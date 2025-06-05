@@ -2,6 +2,9 @@
 <!-- see https://github.com/odoo/odoo/blob/15fd3f62769b137cb9a0625f47b333424b851a27/addons/point_of_sale/static/src/app/screens/receipt_screen/receipt/receipt_header/receipt_header.xml -->
 <templates id="template" xml:space="preserve">
     <t t-name="pos_indv_receipt.ReceiptHeader" t-inherit="point_of_sale.ReceiptHeader" t-inherit-mode="extension">
+        <xpath expr="//img[contains(@class, 'pos-receipt-logo')]" position="attributes">
+            <attribute name="t-if">!(this.props.data.individualReceipt or this.props.data.printFullClientReceipt  or this.props.data.printCachierReceipt)</attribute>
+        </xpath>
         <xpath expr="//div[contains(@class, 'pos-receipt-contact')]" position="inside">
             <!-- Full Client Receipt Messages -->
             <t t-if="props.data.printFullClientReceipt">

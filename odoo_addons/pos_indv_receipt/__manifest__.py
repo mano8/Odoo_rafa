@@ -25,7 +25,7 @@ Key Features:
             # PoS files
             'pos_indv_receipt/static/src/overrides/**/*',
             'pos_indv_receipt/static/src/app/**/*',
-            ('after', 'point_of_sale/static/src/scss/pos.scss', 'pos_indv_receipt/static/scss/pos_individual_receipt.scss'),
+            ('after', 'point_of_sale/static/src/scss/pos.scss', 'pos_indv_receipt/static/src/scss/pos_individual_receipt.scss'),
             'web/static/lib/luxon/luxon.js',
         ],
     },

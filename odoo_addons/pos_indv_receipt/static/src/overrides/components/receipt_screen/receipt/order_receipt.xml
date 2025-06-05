@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- see https://github.com/odoo/odoo/blob/15fd3f62769b137cb9a0625f47b333424b851a27/addons/point_of_sale/static/src/app/screens/receipt_screen/receipt/order_receipt.xml -->
+<templates id="template" xml:space="preserve">
+
+    <t t-name="pos_indv_receipt.OrderReceipt" t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
+        <xpath expr="//OrderWidget" position="attributes">
+            <attribute name="t-if">!(this.props.data.printCachierReceipt or this.props.data.individualReceipt) or this.props.data.printFullClientReceipt</attribute>
+        </xpath>
+        <xpath expr="//OrderWidget" position="after">
+            <t t-if="props.data.printCachierReceipt">
+                <t t-call="pos_indv_receipt.prepaid_products_summary" t-set="props.data.orderlines" />
+            </t>
+            <t t-if="props.data.individualReceipt and !props.data.printFullClientReceipt">
+                <t t-call="pos_indv_receipt.individual_receipt_line" t-set="props" />
+            </t>
+        </xpath>
+        <xpath expr="//div[contains(@class, 'pos-receipt-taxes')]" position="attributes">
+            <attribute name="t-if">!this.props.data.individualReceipt</attribute>
+        </xpath>
+        <xpath expr="//div[contains(@class, 'receipt-total')]" position="attributes">
+            <attribute name="t-if">!this.props.data.individualReceipt</attribute>
+        </xpath>
+        <xpath expr="//div[contains(@class, 'receipt-rounding')]" position="attributes">
+            <attribute name="t-if">!this.props.data.individualReceipt</attribute>
+        </xpath>
+        <xpath expr="//div[contains(@class, 'receipt-to-pay')]" position="attributes">
+            <attribute name="t-if">!this.props.data.individualReceipt</attribute>
+        </xpath>
+        <xpath expr="//div[contains(@class, 'paymentlines')]" position="attributes">
+            <attribute name="t-if">!this.props.data.individualReceipt</attribute>
+        </xpath>
+        <xpath expr="//div[contains(@class, 'receipt-change')]" position="attributes">
+            <attribute name="t-if">!this.props.data.individualReceipt</attribute>
+        </xpath>
+    </t>
+    
+</templates>
