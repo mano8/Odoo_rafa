@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="individual_receipt_line" xml:space="preserve">
+    <t t-name="pos_indv_receipt.individual_receipt_line" owl="1">
+        <t t-if="props?.data?.orderlines?.length == 1">
+            <t t-set="line" t-value="omit(props?.data?.orderlines[0], 'customerNote')"/>
+            <t t-set="basic_receipt" t-value="props?.basic_receipt"/>
+            <t t-set="showTaxGroupLabels" t-value="false"/>
+            <div class="pos-receipt p-2 mw-100">
+                <div class="d-flex flex-column flex-grow-1 rounded-3 bg-white overflow-hidden">
+                    <div class="order-container d-flex flex-column flex-grow-1 overflow-y-auto text-start">
+                        <li class="orderline position-relative d-flex align-items-center p-2 lh-sm cursor-pointer px-0">
+                            <div class="d-flex flex-column w-100 gap-1">
+                                <div class="d-flex justify-content-between">
+                                    <div class="product-name d-inline-block flex-grow-1 fw-bolder pe-1 text-truncate">
+                                        <span class="text-wrap" t-esc="line.productName"/>
+                                        <t t-slot="product-name"/>
+                                    </div>
+                                    <div t-if="!props.basic_receipt" class="product-price price fw-bolder">
+                                        <t t-if="line.price === 'free'">Free</t>
+                                        <t t-else="" t-esc="line.unitPrice"/>
+                                    </div>
+                                    <div t-if="props.showTaxGroupLabels" t-esc="line.taxGroupLabels" class="text-end" style="width: 2rem"/>
+                                </div>
+                                <ul class="info-list d-flex flex-column">
+                                    <li class="price-per-unit">
+                                        <span class="qty px-1 border rounded text-bg-view fw-bolder me-1" t-esc="line.qty"/>
+                                        <t t-if="!props.basic_receipt">
+                                            x
+                                            <t t-if="line.price !== 0">
+                                                <s t-esc="line.oldUnitPrice" t-if="line.oldUnitPrice" />
+                                                <t t-esc="line.unitPrice" />
+                                            </t>
+                                            /
+                                        </t>
+                                        <t t-if="line.unit" t-esc="line.unit" />
+                                    </li>
+                                    <li t-if="line.price !== 0 and line.discount and line.discount !== '0' and !props.basic_receipt">
+                                        <t t-esc="line.price_without_discount"/> With a <em><t t-esc="line.discount" />% </em> discount
+                                    </li>
+                                    <li t-if="line.customerNote" class="customer-note w-100 p-2 mt-2 rounded text-break text-bg-warning bg-opacity-25">
+                                        <i class="fa fa-sticky-note me-1" role="img" aria-label="Customer Note" title="Customer Note"/>
+                                        <t t-esc="line.customerNote" />
+                                    </li>
+                                    <div class="internal-note-container d-flex gap-2">
+                                        <t t-foreach="line.internalNote?.split?.('\n') or []" t-as="note" t-key="note_index">
+                                            <li t-if="note.trim() !== ''" t-esc="note" class="internal-note badge mt-2 p-2 rounded-pill bg-info text-info bg-opacity-25" style="font-size: 0.85rem;" />
+                                        </t>
+                                    </div>
+                                    <li t-foreach="line.packLotLines or []" t-as="lot" t-key="lot_index" t-esc="lot" />
+                                    <t t-slot="default" />
+                                </ul>
+                            </div>
+                        </li>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </t>
+</templates>
