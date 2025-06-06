@@ -75,3 +75,5 @@ if [ "$STATUS" = "up" ]; then
 
     nmcli con up "$CON_NAME"
 fi
+
+exit 0
