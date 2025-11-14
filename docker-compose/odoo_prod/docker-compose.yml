@@ -4,7 +4,7 @@ services:
     ports:
       - "8000:80"
       - "4430:443"
-      - "8080:8080"   # Dashboard
+      - "8080:8080"   # Treafik Dashboard
       - "9000:9000"   # odoo entryPoint
       - "9001:9001"   # hw_proxy entryPoint
     volumes:

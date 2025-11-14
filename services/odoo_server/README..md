@@ -179,11 +179,11 @@ MaxRetentionSec=2week
 Compress=yes
 ```
 
-  - `SystemMaxUse=` controls aggregate size for persistent logs (typically in `/var/log/journal`)
-  - `SystemMaxFileSize=` sets how big each file grows before rotating
-  - `SystemMaxFiles=` limits number of archived files
-  - The `Runtime*` settings apply to volatile logs in `/run/log/journal`
-  - `MaxRetentionSec=` and `MaxFileSec=` (not shown) can govern time-based retention.
+- `SystemMaxUse=` controls aggregate size for persistent logs (typically in `/var/log/journal`)
+- `SystemMaxFileSize=` sets how big each file grows before rotating
+- `SystemMaxFiles=` limits number of archived files
+- The `Runtime*` settings apply to volatile logs in `/run/log/journal`
+- `MaxRetentionSec=` and `MaxFileSec=` (not shown) can govern time-based retention.
 
 - After ediiting reload with
 
