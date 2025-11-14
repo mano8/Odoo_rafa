@@ -241,11 +241,3 @@ Thanks to the Odoo community and contributors of third-party modules used with t
 
 * If you maintain separate Compose files per environment (dev/stage/prod), keep them under `docker-compose/` and document any differences (ports, volumes, env).
 * For detailed server notes or non-Docker installs, see **`ODOO_SERVER.md`**. ([GitHub][3])
-
----
-
-If you want, I can adapt this README to match the exact Compose file names, environment keys, and add-on paths once you confirm those specifics (or give me access to those file contents).
-
-[1]: https://github.com/mano8/Odoo_rafa/blob/main/ "GitHub - mano8/Odoo_rafa: Odoo server de Rafa"
-[2]: https://github.com/mano8/Odoo_rafa/tree/main/services/odoo_server "Odoo_rafa/services/odoo_server at main · mano8/Odoo_rafa · GitHub"
-[3]: https://github.com/mano8/Odoo_rafa/blob/main/ODOO_SERVER.md "Odoo_rafa/ODOO_SERVER.md at main · mano8/Odoo_rafa · GitHub"
