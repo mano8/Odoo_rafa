@@ -16,7 +16,6 @@ sudo nano /etc/NetworkManager/dispatcher.d/99-static-ip-or-dhcp.sh
 
 and copy content of `99-static-ip-or-dhcp.sh` in current path.
 
-
 ### Apply changes
 
 ```bash
@@ -24,7 +23,7 @@ sudo chmod +x /etc/NetworkManager/dispatcher.d/99-static-ip-or-dhcp.sh
 sudo systemctl restart NetworkManager
 ```
 
-### Test:
+### Test
 
 ```bash
 ip a | grep 192.168.1.146
@@ -32,6 +31,5 @@ ip a | grep 192.168.1.146
 
 journalctl -t static-ip -n 20
 
-# Must have line like: Detected subnet 192.168.1.0/24. Setting static IP 192.168.1.146/24 on enp5s0
+# Example: Detected subnet 192.168.1.0/24. Setting static IP 192.168.1.146/24 on enp5s0
 ```
-
