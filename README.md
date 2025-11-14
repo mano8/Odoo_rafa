@@ -2,7 +2,7 @@
 
 **Production-ready Odoo server setup** with Docker Compose, optional offline mode, hardware proxy helpers, and custom add-ons/fonts.
 
-> This repository contains the infrastructure and assets used to run “Rafa’s Odoo server” in a reproducible way.
+> This repository contains the infrastructure and assets used to run “Odoo server” in a reproducible way.
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](#license)
 
