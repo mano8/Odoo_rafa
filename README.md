@@ -5,7 +5,7 @@
 > A ready-to-run Odoo 18 Point of Sale environment designed for local, secure, and hardware-integrated deployments.
 > Eliminates the need for Odoo IoT Box while offering full HTTPS security, test printing, and local monitoring tools.
 
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](#license)
+[License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
 
 ---
 
@@ -29,7 +29,6 @@ All components run locally in Docker containers, except for the optional **`hw_p
 ## 🧭 Repository Structure
 
 ```bash
-.
 ├── docker-compose/           # Main Docker Compose and environment templates
 │   ├── traefik/              # Traefik configs, routers, and local certs
 │   ├── postgres/pgdata/      # PostgreSQL persistent storage
@@ -52,7 +51,7 @@ All components run locally in Docker containers, except for the optional **`hw_p
 
 ## 🧩 System Architecture
 
-**Data Flow**
+### Data Flow
 
 1. **Traefik** terminates HTTPS and routes requests:
 
@@ -67,27 +66,106 @@ All components run locally in Docker containers, except for the optional **`hw_p
 
 ## 🚀 Quick Start
 
+### 📘 Table of Contents
+
+1. [Requirements](#1️⃣-requirements)
+2. [Clone the Repository](#2️⃣-clone-the-repository)
+3. [`hw_proxy` Service](#3️⃣-hw_proxy-service)
+4. [Install, Secure, and Configure Docker (with mTLS and userns-remap)](#4️⃣-install-secure-and-configure-docker-with-mtls-and-userns-remap)
+5. [Set up Docker Compose](#5️⃣-set-up-docker-compose)
+6. [Configure Environment](#6️⃣-configure-environment)
+7. [Launch the Stack](#7️⃣-launch-the-stack)
+
+---
+
 ### 1️⃣ Requirements
 
-* Docker ≥ 24
-* Docker Compose v2
-* (Optional) Make or GNU utilities
-* Windows users: WSL2 recommended
+Ensure your host meets the prerequisites:
+
+* **Ubuntu 22.04+ (recommended)** or compatible Linux
+* **Docker ≥ 24** and **Docker Compose v2**
+* **sudo/root access** for service and device configuration
+* (Optional) **POS printer** connected via USB or serial
+* (Optional) **Make**, **curl**, and **NetworkManager** for utilities
 
 ---
 
 ### 2️⃣ Clone the Repository
 
+Clone this repository to your preferred directory, ideally `/opt/Odoo_rafa`:
+
 ```bash
-git clone https://github.com/mano8/Odoo_rafa.git
+sudo mkdir -p /opt
+cd /opt
+sudo git clone https://github.com/mano8/Odoo_rafa.git
+sudo chown -R $USER:$USER Odoo_rafa
 cd Odoo_rafa
 ```
 
 ---
 
-### 3️⃣ Configure Environment
+### 3️⃣ [`hw_proxy` Service](./fiesta_pos/hw_proxy/hw_proxy/README.md)
 
-Create or edit `.env` (compose-level):
+The **`hw_proxy`** FastAPI service runs **directly on the host machine** and acts as a bridge between **Odoo POS** and **local hardware** such as printers and cash drawers.
+
+It provides API endpoints for:
+
+* 🖨️ **ESC/POS printer control** (e.g., Posiflex PP6800, Epson TM series)
+* 💾 **Database backups** (PostgreSQL dump + ZIP download)
+* 🔌 **System actions** (reboot, shutdown, restart containers)
+* ⚙️ **Serial port configuration** and **hardware enumeration**
+
+Setup includes:
+
+* Creating a dedicated `hw_user`
+* Configuring `udev` permissions for `/dev/tty*`
+* Enabling `systemd` services (`hw_proxy.service`, `serial-config.service`)
+
+📘 Full setup → [View hw_proxy README](./fiesta_pos/hw_proxy/hw_proxy/README.md)
+
+---
+
+### 4️⃣ [Install, Secure, and Configure Docker (with mTLS and `userns-remap`)](./docker/README.md)
+
+Install and harden Docker Engine for a secure local environment:
+
+* Installs Docker CE from the official repository
+* Enables **user namespace remapping** for non-root containers
+* Configures **mutual TLS (mTLS)** for Docker API access
+* Creates an isolated **dummy interface** (`docker0-mgmt`)
+* Optionally configures **journald** for centralized log rotation
+
+📘 Detailed instructions → [View Docker Setup README](./docker/README.md)
+
+---
+
+### 5️⃣ [Set up Docker Compose](./docker-compose/README.md)
+
+Use Docker Compose to orchestrate Odoo, PostgreSQL, Traefik, and `hw_status_service`.
+
+Features include:
+
+* **Online & Offline** deployment support
+* **Systemd auto-start** integration (`odoo-pos.service`)
+* **journald-based logging** for each container
+* Pre-built environment templates and configuration examples
+
+📘 Deployment guide → [View Docker Compose README](./docker-compose/README.md)
+
+---
+
+### 6️⃣ Configure Environment
+
+Copy and customize the environment files:
+
+```bash
+cp ./env.example.txt .env
+cp ./hw_proxy.env.example.txt ./hw_proxy.env
+nano .env
+nano ./hw_proxy.env
+```
+
+Example configuration:
 
 ```env
 DB_HOST=fiesta_db
@@ -96,27 +174,34 @@ DB_USER=odoo
 DB_PASSWORD=changethis
 ```
 
-> Odoo automatically initializes the database on first start and updates the `pos_indv_receipt` module each time it runs.
+Odoo automatically initializes the database on first run.
+The same credentials should appear in `odoo/config/odoo.conf`.
 
 ---
 
-### 4️⃣ Launch the Stack
+### 7️⃣ Launch the Stack
+
+Build and start all containers:
 
 ```bash
-docker compose -f docker-compose/docker-compose.yml up -d --build
+sudo docker compose -f docker-compose/docker-compose.yml up -d --build
 ```
 
-**Access:**
+Access the main services:
 
-| Service               | URL                                                                                        | Description                     |
-| --------------------- | ------------------------------------------------------------------------------------------ | ------------------------------- |
-| **Odoo ERP / POS**    | [https://traefik-client.local:9000](https://traefik-client.local:9000)                     | Main Odoo web interface         |
-| **Hardware Status**   | [https://traefik-client.local:9001/hw_status](https://traefik-client.local:9001/hw_status) | FastAPI dashboard               |
-| **Hardware Proxy**    | [https://traefik-client.local:9001/hw_proxy](https://traefik-client.local:9001/hw_proxy)   | Proxies to `192.168.1.146:9002` |
-| **Traefik Dashboard** | [http://localhost:8080](http://localhost:8080)                                             | Reverse proxy status            |
+| Service               | URL                                                                                        | Description                   |
+| --------------------- | ------------------------------------------------------------------------------------------ | ----------------------------- |
+| **Odoo ERP / POS**    | [https://traefik-client.local:9000](https://traefik-client.local:9000)                     | Main Odoo web interface       |
+| **Hardware Status**   | [https://traefik-client.local:9001/hw_status](https://traefik-client.local:9001/hw_status) | FastAPI dashboard             |
+| **Hardware Proxy**    | [https://traefik-client.local:9001/hw_proxy](https://traefik-client.local:9001/hw_proxy)   | Bridge to local host hardware |
+| **Traefik Dashboard** | [http://localhost:8080](http://localhost:8080)                                             | Reverse proxy monitor         |
 
-> The stack includes locally trusted SSL certificates (see `docker-compose/traefik/certs/ca.pem`).
-> Import the CA into your system to avoid HTTPS warnings.
+> 🧩 Import the local CA (`docker-compose/traefik/certs/ca.pem`) into your browser/OS to avoid HTTPS warnings.
+
+---
+
+✅ **Your Odoo POS Stack is ready.**
+You now have a locally secure, fully containerized Odoo 18 environment with Traefik, PostgreSQL, hardware proxy integration, and automated service management.
 
 ---
 
@@ -141,7 +226,7 @@ BAUDRATE = 9600
 
 Provides a browser-based dashboard for monitoring and testing printers.
 
-**Features**
+#### hw_status_service Features
 
 * Real-time printer connection status
 * CPU, memory, uptime metrics
@@ -154,14 +239,14 @@ Provides a browser-based dashboard for monitoring and testing printers.
 
 Enhances Odoo 18 POS with per-unit ticket printing.
 
-**Features**
+### Odoo Add-on Features
 
 * Adds **“Print Product Tickets”** button on receipt screen
 * Popup to select items from the current order
 * Prints **one ticket per quantity unit**
 * Tickets use standard POS header/footer
 
-**Installation**
+#### Odoo Add-on Installation
 
 1. Already included under `odoo_addons/pos_indv_receipt/`
 2. Automatically updated on container start (`-u pos_indv_receipt --dev=css`)
