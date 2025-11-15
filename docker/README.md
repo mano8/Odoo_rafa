@@ -1,58 +1,77 @@
-# Install, Secure, and Configure Docker (with mTLS and `userns-remap`)
+# 🐳 Install, Secure, and Configure Docker (with mTLS and `userns-remap`)
 
-This guide helps you install Docker securely on Ubuntu, enable `userns-remap` for user isolation, and set up **mutual TLS (mTLS)** for secure Docker API access.
+This guide explains how to install Docker securely on **Ubuntu**, enable **user namespace remapping** (`userns-remap`) for host isolation, configure **mutual TLS (mTLS)** for authenticated access to the Docker API, and tune **journald** logging to control disk usage.
 
 ---
 
-## 1. Uninstall Conflicting Packages
+## 🔹 1. Uninstall Conflicting Packages
+
+Remove any existing or conflicting Docker-related packages before installing the official version:
 
 ```bash
-for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
+for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do
+  sudo apt-get remove -y $pkg
+done
 ```
 
-## 2. Install Docker
+---
 
-### Add Docker's Official APT Repository
+## 🔹 2. Install Docker Engine
+
+### Add Docker’s Official Repository
 
 ```bash
-# Add Docker's official GPG key:
 sudo apt-get update
-sudo apt-get install ca-certificates curl
+sudo apt-get install -y ca-certificates curl
 sudo install -m 0755 -d /etc/apt/keyrings
 sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 sudo chmod a+r /etc/apt/keyrings/docker.asc
+```
 
-# Add the repository to Apt sources:
+Add the repository:
+
+```bash
 echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
+  https://download.docker.com/linux/ubuntu \
   $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
 sudo apt-get update
 ```
 
-### Install Docker Engine
+### Install Engine, CLI, and Compose
 
 ```bash
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 ```
 
-### Verify Docker Installation
+### Verify Installation
 
 ```bash
 sudo docker run hello-world
 ```
 
-## 3. Enable `userns-remap` (Rootless Container Isolation)
+---
 
-### Check existing UID/GID mappings
+## 🔹 3. Enable `userns-remap` for Host Isolation
+
+Docker’s **user namespace remapping** ensures containers run as unprivileged remapped UIDs/GIDs on the host, improving isolation.
+
+### Check UID/GID mappings
 
 ```bash
-grep -E '^(root|dockremap)' /etc/subuid /etc/subgid
-cat /etc/subuid
-# Example: myUser:100000:65536
+grep -E '^(root|dockremap)' /etc/subuid /etc/subgid || true
 ```
 
-### Configure `/etc/docker/daemon.json`
+Example output:
+
+```bash
+root:100000:65536
+dockremap:165536:65536
+```
+
+### Configure Docker Daemon
 
 ```bash
 sudo nano /etc/docker/daemon.json
@@ -64,35 +83,42 @@ Paste:
 {
   "userns-remap": "default",
   "experimental": false,
-  "storage-driver": "overlay2"
+  "storage-driver": "overlay2",
+  "log-driver": "journald"
 }
 ```
 
-> 💡 Docker will auto-create the `dockremap` user and map UID/GID ranges.
+> 💡 The `"default"` value automatically creates a `dockremap` user for UID/GID remapping.
 
-> 💡 you can add global log driver: `"log-driver": "journald"`
-
-### Restart Docker
+Restart Docker:
 
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl restart docker
 ```
 
-### Validate
+Validate:
 
 ```bash
 getent passwd dockremap
-# Example: dockremap:x:997:985::/home/dockremap:/bin/sh
 id dockremap
-# Example: uid=997(dockremap) gid=985(dockremap) grupos=985(dockremap)
+```
+
+Example output:
+
+```bash
+dockremap:x:997:985::/home/dockremap:/bin/sh
+uid=997(dockremap) gid=985(dockremap) groups=985(dockremap)
 ```
 
 ---
 
-## 4. Set Up Secure Docker API with mTLS
+## 🔹 4. Configure Secure Docker API with mTLS
 
-### Define Host IP
+Docker’s REST API should **never** be exposed over TCP without TLS and authentication.
+You’ll use **mutual TLS (mTLS)**, meaning both client and server authenticate with certificates.
+
+### Define the Management IP
 
 ```bash
 export DOCKER_HOST_IP=10.254.254.1
@@ -104,43 +130,58 @@ export DOCKER_HOST_IP=10.254.254.1
 sudo DOCKER_HOST_IP="$DOCKER_HOST_IP" /opt/Odoo_rafa/docker/scripts/manage_docker_certs.sh generate
 ```
 
-> 🔁 To remove certificates later:
+> To remove certificates later:
 
 ```bash
 sudo /opt/Odoo_rafa/docker/scripts/manage_docker_certs.sh remove
 ```
 
+Certificates are stored under:
+
+```bash
+/etc/docker/certs/
+├── ca.pem
+├── server-cert.pem
+├── server-key.pem
+├── client-cert.pem
+└── client-key.pem
+```
+
+> 💡 Alternatively, see [Manual Certificate Generation Guide](./certs/README.md)
+> for full OpenSSL-based manual steps and permission handling.
+
 ---
 
-## 5. Configure Dummy Interface for API Binding
+## 🔹 5. Add a Dummy Management Interface
 
-### Ensure NetworkManager Is Running
+To bind the Docker API securely to an isolated address, create a **dummy interface**.
+
+### Ensure NetworkManager Is Active
 
 ```bash
 systemctl is-enabled NetworkManager
-# Example:  enabled
-systemctl is-active  NetworkManager
-# Example:  active
+systemctl is-active NetworkManager
 ```
 
-### Add Dummy Interface
+### Create Dummy Interface
 
 ```bash
-sudo nmcli connection add  type dummy ifname docker0-mgmt con-name docker0-mgmt ip4 "$DOCKER_HOST_IP"/32 autoconnect yes
-# Active interface
+sudo nmcli connection add type dummy ifname docker0-mgmt con-name docker0-mgmt ip4 "$DOCKER_HOST_IP"/32 autoconnect yes
 sudo nmcli connection up docker0-mgmt
 ```
 
-### Validate
+Verify:
 
 ```bash
 ip addr show docker0-mgmt
 nmcli device status | grep docker0-mgmt
 ```
 
+You should see `docker0-mgmt` with IP `10.254.254.1`.
+
 ---
 
-## 6. Configure Docker Daemon for mTLS
+## 🔹 6. Enable mTLS in Docker Daemon
 
 Edit `/etc/docker/daemon.json`:
 
@@ -158,10 +199,10 @@ Edit `/etc/docker/daemon.json`:
 }
 ```
 
-### Override Docker systemd Service
+### Override the Systemd Service
 
 ```bash
-sudo mkdir /etc/systemd/system/docker.service.d
+sudo mkdir -p /etc/systemd/system/docker.service.d
 sudo nano /etc/systemd/system/docker.service.d/override.conf
 ```
 
@@ -173,24 +214,28 @@ ExecStart=
 ExecStart=/usr/bin/dockerd --containerd=/run/containerd/containerd.sock
 ```
 
-### Reload and Restart
+Reload and restart:
 
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl restart docker
 ```
 
-### Check Docker Status
+### Validate API Binding
 
 ```bash
-sudo docker info | grep -E 'Storage Driver|Userns|Experimental'
-sudo systemctl status docker
-
 sudo ss -tlnp | grep dockerd
-# Example:  LISTEN 0      4096       10.254.254.1:2376       0.0.0.0:*    users:(("dockerd",pid=16757,fd=4))
 ```
 
-## 7. Verify Remote TLS Connection
+Example output:
+
+```bash
+LISTEN 0 4096 10.254.254.1:2376 0.0.0.0:* users:(("dockerd",pid=16757,fd=4))
+```
+
+---
+
+## 🔹 7. Test Remote TLS Access
 
 ```bash
 cd /opt/Odoo_rafa/docker/certs
@@ -202,11 +247,70 @@ sudo docker --tlsverify \
   -H tcp://10.254.254.1:2376 version
 ```
 
+You should see version info from your Docker daemon — confirming secure mTLS communication.
+
 ---
 
-## 8. Debugging
+## 🔹 8. Configure `journald` for Docker Logging
 
-### Restart & Logs
+By default, Docker writes logs through **journald**, which can consume large amounts of disk space.
+To control growth and enable automatic log rotation, configure journald limits.
+
+### Create configuration file
+
+```bash
+sudo mkdir -p /etc/systemd/journald.conf.d
+sudo nano /etc/systemd/journald.conf.d/00-docker.conf
+```
+
+### Add the following content
+
+```ini
+[Journal]
+# Limit total disk space taken by all journal files
+SystemMaxUse=1G
+# Always leave at least this much free space on the filesystem
+SystemKeepFree=100M
+
+# Cap individual journal files to 100 MiB each
+SystemMaxFileSize=100M
+# Keep at most 10 archived journal files
+SystemMaxFiles=10
+
+# Runtime (volatile) journals in /run/log/journal
+RuntimeMaxUse=200M
+RuntimeKeepFree=50M
+RuntimeMaxFileSize=50M
+RuntimeMaxFiles=5
+
+# Optionally expire entries older than 2 weeks
+MaxRetentionSec=2week
+
+# Compress archived journal files
+Compress=yes
+```
+
+### Explanation
+
+* `SystemMaxUse=` → Total space used by persistent logs (`/var/log/journal`)
+* `SystemMaxFileSize=` → Size limit per file before rotation
+* `SystemMaxFiles=` → Number of archived files retained
+* `Runtime*` → Limits for temporary logs in `/run/log/journal`
+* `MaxRetentionSec=` → Deletes entries older than the specified time
+* `Compress=` → Compresses old logs automatically
+
+### Apply and verify
+
+```bash
+sudo systemctl restart systemd-journald
+sudo systemd-analyze cat-config systemd/journald.conf
+```
+
+---
+
+## 🔹 9. Troubleshooting & Debugging
+
+### Restart and View Logs
 
 ```bash
 sudo systemctl restart docker
@@ -214,8 +318,26 @@ sudo journalctl -xeu docker.service
 sudo journalctl -u docker.service --since "5 minutes ago"
 ```
 
-### Run Docker Daemon in Debug Mode
+### Run Daemon in Debug Mode
 
 ```bash
 sudo dockerd --debug
 ```
+
+---
+
+## 🧠 Best Practices Summary
+
+| Area                  | Recommendation                                           |
+| --------------------- | -------------------------------------------------------- |
+| **Access**            | Expose TCP socket **only** with mTLS                     |
+| **User Mapping**      | Always enable `"userns-remap": "default"`                |
+| **Logging**           | Use `journald` with size and retention caps              |
+| **Network Isolation** | Bind API to dummy interface (no public exposure)         |
+| **Certificates**      | Regenerate yearly; never reuse CA for unrelated services |
+| **Permissions**       | Limit `/etc/docker/certs/` to `root:docker` (chmod 750)  |
+
+---
+
+✅ **You now have a hardened Docker setup**
+with `userns-remap` for privilege isolation, **mutual TLS-secured API**, and **journald log control** — suitable for secure production or LAN-based automation.
