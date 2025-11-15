@@ -66,14 +66,9 @@ mkdir /opt/Odoo_rafa/hw_proxy/wheelhouse_dev
 pip download --dest wheelhouse_dev -r hw_proxy/requirements-docker-dev.txt
 ```
 
-
-
 Two Docker files are available  for that purpose for dev/prod use cases:
 
 - **`hw_proxy/hw_proxy/Dockerfile.offline`**: Prod 
 
 To enable possiblity to work offline who need prebuild an image, and download needed python packages
 
-
-
-## 
