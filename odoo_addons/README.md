@@ -28,14 +28,16 @@ This feature is ideal for **bars, events, and venues** where individual items (e
 
 1. Ensure this folder is mounted inside your Odoo container (for example):
 
-   ```
-   ./odoo_addons/pos_indv_receipt/
-   ```
+    ```bash
+    ./odoo_addons/pos_indv_receipt/
+    ```
+
 2. Restart Odoo:
 
    ```bash
    docker compose restart fiesta_odoo
    ```
+
 3. Log in to Odoo → **Apps** → Update Apps List → Search for **POS Individual Receipt** → Install.
 4. Once installed, open the **Point of Sale** app → complete an order → click **“Print Product Tickets”** on the receipt screen.
 
@@ -63,7 +65,7 @@ zip -r /opt/Odoo_rafa/pos_indv_receipt_v18.0.1.zip pos_indv_receipt
 
 This creates a distributable file:
 
-```
+```bash
 /opt/Odoo_rafa/pos_indv_receipt_v18.0.1.zip
 ```
 
@@ -73,7 +75,7 @@ This creates a distributable file:
 
 ### 🧱 File Structure
 
-```
+```bash
 pos_indv_receipt/
 ├── __manifest__.py         # Module metadata
 ├── models/                 # Python models (if any)
