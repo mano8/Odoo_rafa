@@ -1,0 +1,5 @@
+# Set printer device key
+# must be valid key 
+# from fiesta_pos/hw_proxy/hw_proxy/core/supported_devices.py
+# rename to hw_proxy.env
+PRINTER_KEY="PP6800"
