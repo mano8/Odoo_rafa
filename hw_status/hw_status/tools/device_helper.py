@@ -34,7 +34,8 @@ class DeviceHelper:
                     conf=self.set_device_port_schema(
                         port_type=device.get('port_type'),
                         config=device.get('conf')),
-                    image_conf=image_conf
+                    image_conf=image_conf,
+                    print_width=device.get('print_width')
                 )
         return None
     

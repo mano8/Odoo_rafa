@@ -2,14 +2,14 @@
 Api routes for hw_sys module
 """
 import logging
-import asyncio
-import psutil
 import subprocess
-from fastapi import APIRouter, HTTPException, Header, Request
+import psutil
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
+from hw_proxy.core.deps import get_printer_pool
+from hw_proxy.core.printer_pool import PrinterPool
 from hw_proxy.schemas.hw_sys import JournalQuery
 from hw_proxy.tools.utils import HwUtils
-from hw_proxy.core.config import settings
 
 
 logger = logging.getLogger("hw_proxy")
@@ -107,27 +107,45 @@ async def serial_config(device: str = "/dev/ttyACM0"):
 
 
 @router.get("/printer_status")
-async def get_printer_status():
+async def get_printer_status(pool: PrinterPool = Depends(get_printer_pool)):
     try:
-        result = HwUtils.get_printer_global_status()
+        esc_status = await pool.get_full_status()
+        devfile = pool.devfile
+        conection = HwUtils.get_printer_conection_status(devfile)
+        try:
+            serial_config = HwUtils.get_serial_config(devfile)
+        except Exception:
+            serial_config = None
+
+        result = {"devicePortType": "SERIAL"}
+        result.update({
+            "printerOnline": esc_status.get("is_online"),
+            "paperOk": esc_status.get("paper_status") == "ok",
+            "paperLow": esc_status.get("paper_status") == "near_end",
+        })
+        if isinstance(conection, dict):
+            result["connected"] = conection.get("status") == "connected"
+        if isinstance(serial_config, dict):
+            serial_config.update({"readStatus": True, "writeStatus": True})
+            result["serialInfo"] = serial_config
         return JSONResponse(result)
     except Exception as e:
-        return HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/print_ticket")
-async def print_ticket():
+async def print_ticket(pool: PrinterPool = Depends(get_printer_pool)):
     try:
-        result = HwUtils.print_dummy_ticket()
-        return JSONResponse(result)
+        await pool.cut()
+        return JSONResponse({"success": True})
     except Exception as e:
-        return HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/open_cashdrawer")
-async def open_cashdrawer():
+async def open_cashdrawer(pool: PrinterPool = Depends(get_printer_pool)):
     try:
-        result = HwUtils.open_cash_drawer()
-        return JSONResponse(result)
+        await pool.open_cashdrawer()
+        return JSONResponse({"success": True})
     except Exception as e:
-        return HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

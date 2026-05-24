@@ -1,15 +1,20 @@
 """FastAPI Async IoT Box Proxy for Odoo (Printer)"""
+import asyncio
 import logging
+import socket
+import time
 from ipaddress import ip_address, ip_network
-from fastapi import FastAPI
-from starlette.middleware.cors import CORSMiddleware
+from urllib.parse import urlparse
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi import Request
-from fastapi.responses import JSONResponse
+from starlette.middleware.cors import CORSMiddleware
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from hw_proxy.__init__ import configure_logging
 from hw_proxy.app.main import app_router
 from hw_proxy.core.config import settings
-from urllib.parse import urlparse
+from hw_proxy.core.printer_pool import PrinterPool
+from hw_proxy.metrics import http_request_duration_seconds, http_requests_total
 
 
 logging.basicConfig()
@@ -18,9 +23,10 @@ logger = logging.getLogger("hw_proxy")
 
 # Networks you trust
 TRUSTED_NETWORKS = [
+    ip_network("10.0.0.0/8"),
     ip_network("172.16.0.0/12"),
-    ip_network("192.168.1.0/24"),
-    ip_network("127.0.0.0/16")
+    ip_network("192.168.0.0/16"),
+    ip_network("127.0.0.0/8"),
 ]
 
 
@@ -38,9 +44,9 @@ def is_ip_allowed(client_ip: str) -> bool:
 
 def is_origin_allowed(origin: str) -> bool:
     """
-    If an Origin header is present, parse its hostname, convert to IP,
-    and check if it also lies in TRUSTED_NETWORKS.  If parsing fails,
-    or it's not in a trusted range, return False.
+    If an Origin header is present, resolve its hostname to an IP and
+    check if it lies in TRUSTED_NETWORKS.  Handles both numeric IPs and
+    hostnames like 'localhost'.
     """
     if not origin:
         return True  # no Origin header—let it pass to IP‐check
@@ -49,7 +55,10 @@ def is_origin_allowed(origin: str) -> bool:
         hostname = parsed.hostname
         if hostname is None:
             return False
-        ip = ip_address(hostname)
+        try:
+            ip = ip_address(hostname)
+        except ValueError:
+            ip = ip_address(socket.gethostbyname(hostname))
         return any(ip in net for net in TRUSTED_NETWORKS)
     except Exception:
         return False
@@ -103,15 +112,57 @@ async def ip_and_origin_filter(request: Request, call_next):
     return await call_next(request)
 
 
-# --- CORS Middleware for Dev (allow all) ---
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    """Record HTTP request count and latency for every non-metrics request."""
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration = time.perf_counter() - start
+    path = request.url.path
+    if path != f"{settings.API_PREFIX}/metrics":
+        http_requests_total.labels(
+            method=request.method,
+            endpoint=path,
+            status_code=str(response.status_code),
+        ).inc()
+        http_request_duration_seconds.labels(
+            method=request.method,
+            endpoint=path,
+        ).observe(duration)
+    return response
+
+
+@app.get(f"{settings.API_PREFIX}/metrics", include_in_schema=False)
+async def metrics_endpoint():
+    """Prometheus scrape endpoint."""
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+# CORSMiddleware runs before ip_and_origin_filter (outermost wrapper).
+# Allow localhost on any port so hw_status and other local clients
+# can reach hw_proxy without adding every port to BACKEND_CORS_ORIGINS.
+# ip_and_origin_filter is the real security gate (TRUSTED_NETWORKS check).
+_localhost_regex = r"^https?://localhost(:\d+)?$"
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origin_regex=_localhost_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
-    max_age=3600,  # cache preflight requests for 1 hour
+    max_age=3600,
 )
+
+@app.on_event("startup")
+async def _startup() -> None:
+    pool = PrinterPool(settings.PRINTER_KEY)
+    try:
+        await asyncio.to_thread(pool.open)
+    except Exception as e:
+        logger.warning("[Startup] Printer not available at boot: %s", e)
+    app.state.printer_pool = pool
+    logger.info("[Startup] Printer pool ready.")
+
 
 app.mount(
     f"{settings.API_PREFIX}/static",

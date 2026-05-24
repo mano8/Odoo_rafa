@@ -34,7 +34,7 @@ DST_BASE="/opt/hw_proxy"
 APP_DST_DIR="$DST_BASE/hw_proxy"
 VENV_DIR="$DST_BASE/.venv"
 
-ADMIN_USER="zepos"
+ADMIN_USER="${HW_USER:-hw_user}"
 SCRIPT_SUBDIR="scripts"
 SCRIPTS_DIR="$APP_DST_DIR/$SCRIPT_SUBDIR"
 
@@ -108,7 +108,9 @@ runuser -u "$ADMIN_USER" -- rsync -a --delete \
 # ------------------------------------------------------------------------------
 info "Step 4: Checking connectivity to PyPI.org…"
 if ! curl -sSf --connect-timeout 5 https://pypi.org/ >/dev/null 2>&1; then
-    fail "Unable to reach https://pypi.org. Verify network access before installing Python packages."
+    echo "WARNING: Unable to reach https://pypi.org — skipping pip install."
+    echo "         Pre-install dependencies manually or use a wheelhouse."
+    exit 0
 fi
 
 # ------------------------------------------------------------------------------

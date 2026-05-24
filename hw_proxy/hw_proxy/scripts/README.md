@@ -6,8 +6,11 @@ Here user who run `hw_proxy` service is `hw_user`.
 ## Add `hw_user` to sudoers
 
 > **Warning**
-> Do not add this user to group sudo.
-Add Permission to run bash scripts as `root` without password
+> Do not add this user to the `sudo` group.
+> Only the `reboot.sh` and `shutdown.sh` scripts require elevated privileges —
+> grant exactly those two paths and nothing else.
+
+Add permission to run those scripts as `root` without a password:
 
 ```bash
 sudo visudo /etc/sudoers.d/hw_user
@@ -22,7 +25,7 @@ hw_user ALL=(root) NOPASSWD: \
     /opt/hw_proxy/hw_proxy/scripts/shutdown.sh
 ```
 
-Verrify
+Verify
 
 ```bash
 # Optional ensure file owner and permission
@@ -48,7 +51,7 @@ sudo adduser <user_name>
 sudo usermod -aG sudo <user_name>
 ```
 
-### Verrify
+### Verify
 
 ```bash
 getent group sudo

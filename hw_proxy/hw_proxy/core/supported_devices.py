@@ -34,8 +34,12 @@ device_list = [
             "dsrdtr": False,
             "profile": "TM-L90"
         },
+        # PP-6800: 80mm paper at 203 DPI; printable width ≈ 512–576 dots — tune if output is clipped or padded
+        'print_width': 512,
         'image_conf': {
-            "impl": "bitImageColumn"
+            "impl": "bitImageRaster",
+            "fragment_height": 256,
+            "center": False,
         }
     },
 ]

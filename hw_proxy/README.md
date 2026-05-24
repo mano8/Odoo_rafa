@@ -40,18 +40,19 @@ This setup allows Odoo to send printing or control commands securely to the host
 
 ## ⚙️ Host Configuration
 
-### 1️⃣ Create a Dedicated User and Group
+### 1️⃣ Create a Dedicated User and Add to Device Groups
 
 The service should **never** run as `root`.
-Create a restricted user and group for printer access.
+Create a restricted user and add it to the standard system groups for serial and printer access.
 
 ```bash
 sudo adduser --disabled-password --gecos "" hw_user
-sudo groupadd printer
-sudo usermod -aG printer hw_user
+sudo usermod -aG dialout,lp hw_user
 ```
 
-> You may name the group as you prefer (`printer`, `pp6800`, etc.) — just ensure the same name is used in your udev rule.
+> `dialout` owns `/dev/ttyACM*` and `/dev/ttyUSB*` on Ubuntu/Debian by default.
+> `lp` covers parallel-port and some USB printer devices.
+> No custom group or udev rule is needed for a standard serial connection.
 
 ---
 
@@ -103,35 +104,32 @@ Bus 001 Device 005: ID 067b:2303 Prolific Technology, Inc. PL2303 Serial Port
 
 ---
 
-### 3️⃣ Configure udev Rules
+### 3️⃣ Verify Device Permissions
 
-Create a persistent rule to ensure the printer port always has the right permissions.
+On Ubuntu/Debian, `/dev/ttyACM0` is already owned by `root:dialout` with mode `crw-rw----`.
+Because `hw_user` is now in the `dialout` group, no custom udev rule is needed.
 
-1. Create the rule file:
+Verify access:
 
-   ```bash
-   sudo nano /etc/udev/rules.d/99-escpos.rules
-   ```
+```bash
+ls -l /dev/ttyACM0
+# crw-rw---- 1 root dialout 166, 0 Jun  1 16:25 /dev/ttyACM0
+```
 
-2. Add the following content (update the port and group if needed):
+If your device uses a different group (e.g. on some distros it may be `tty`), create a targeted rule:
 
-   ```text
-   KERNEL=="ttyACM0", MODE="0660", GROUP="printer"
-   ```
+```bash
+sudo nano /etc/udev/rules.d/99-escpos.rules
+```
 
-3. Reload and apply:
+```text
+KERNEL=="ttyACM0", MODE="0660", GROUP="dialout"
+```
 
-   ```bash
-   sudo udevadm control --reload
-   sudo udevadm trigger
-   ```
-
-4. Verify:
-
-   ```bash
-   ls -l /dev/ttyACM0
-   # crw-rw---- 1 root printer 166, 0 Jun  1 16:25 /dev/ttyACM0
-   ```
+```bash
+sudo udevadm control --reload
+sudo udevadm trigger
+```
 
 ---
 
@@ -259,8 +257,12 @@ device_list = [
             "dsrdtr": False,
             "profile": "TM-L90"
         },
+        # PP-6800: 80mm paper at 203 DPI; printable width ≈ 512–576 dots — tune if output is clipped
+        'print_width': 512,
         'image_conf': {
-            "impl": "bitImageColumn"
+            "impl": "bitImageRaster",   # GS v 0 — faster than bitImageColumn (ESC *)
+            "fragment_height": 256,     # stream 256 rows at a time; printer starts sooner
+            "center": False,
         }
     },
 ]
@@ -268,17 +270,23 @@ device_list = [
 
 **Field descriptions:**
 
-| Field                | Description                                                 |
-| -------------------- | ----------------------------------------------------------- |
-| `vendor` / `product` | USB vendor/product IDs (from `lsusb`).                      |
-| `name`               | Human-readable model name.                                  |
-| `key`                | Unique printer key; must match `.env → PRINTER_KEY`.        |
-| `type`               | Always `DeviceType.PRINTER` for printers.                   |
-| `port_type`          | Usually `DevicePortType.SERIAL` for USB/serial devices.     |
-| `conf.devfile`       | Actual serial device (e.g. `/dev/ttyACM0`, `/dev/ttyUSB0`). |
-| `conf.baudrate`      | Communication speed (e.g. 9600 or 115200).                  |
-| `profile`            | Driver profile name (`TM-L90`, `EPSON`, etc.).              |
-| `image_conf`         | Bitmap rendering method for image printing.                 |
+| Field                        | Description                                              |
+| ---------------------------- | -------------------------------------------------------- |
+| `vendor` / `product`         | USB vendor/product IDs (from `lsusb`).                   |
+| `name`                       | Human-readable model name.                               |
+| `key`                        | Unique key; must match `.env → PRINTER_KEY`.             |
+| `type`                       | Always `DeviceType.PRINTER` for printers.                |
+| `port_type`                  | `DevicePortType.SERIAL` for USB/serial devices.          |
+| `conf.devfile`               | Serial device path (`/dev/ttyACM0`, `/dev/ttyUSB0`...).  |
+| `conf.baudrate`              | Communication speed (115200 for PP-6800).                |
+| `conf.profile`               | ESC/POS profile (`TM-L90`, `TM-T88II`, etc.).            |
+| `print_width`                | Dot width used to scale the image before rasterizing.    |
+| `image_conf.impl`            | `bitImageRaster` (recommended) or `bitImageColumn`.      |
+| `image_conf.fragment_height` | Rows per packet; 256 lets the printer start sooner.      |
+
+> **Tuning `print_width`:** for the PP-6800 on 80 mm paper at 203 DPI the printable area is
+> roughly 512–576 dots. Start at 512 and increase towards 576 if the output has extra whitespace
+> on the right, or decrease if text is clipped.
 
 If you use another printer model, duplicate this entry and modify:
 

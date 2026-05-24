@@ -71,10 +71,11 @@ All components run locally in Docker containers, except for the optional **`hw_p
 1. [Requirements](#1️⃣-requirements)
 2. [Clone the Repository](#2️⃣-clone-the-repository)
 3. [`hw_proxy` Service](#3️⃣-hw_proxy-service)
-4. [Install, Secure, and Configure Docker (with mTLS and userns-remap)](#4️⃣-install-secure-and-configure-docker-with-mtls-and-userns-remap)
-5. [Set up Docker Compose](#5️⃣-set-up-docker-compose)
-6. [Configure Environment](#6️⃣-configure-environment)
-7. [Launch the Stack](#7️⃣-launch-the-stack)
+4. [Post-Deploy Security Hardening](#4️⃣-post-deploy-security-hardening)
+5. [Install, Secure, and Configure Docker (with mTLS and userns-remap)](#5️⃣-install-secure-and-configure-docker-with-mtls-and-userns-remap)
+6. [Set up Docker Compose](#6️⃣-set-up-docker-compose)
+7. [Configure Environment](#7️⃣-configure-environment)
+8. [Launch the Stack](#8️⃣-launch-the-stack)
 
 ---
 
@@ -84,9 +85,10 @@ Ensure your host meets the prerequisites:
 
 * **Ubuntu 22.04+ (recommended)** or compatible Linux
 * **Docker ≥ 24** and **Docker Compose v2**
+* **Make** (`sudo apt install make`)
 * **sudo/root access** for service and device configuration
 * (Optional) **POS printer** connected via USB or serial
-* (Optional) **Make**, **curl**, and **NetworkManager** for utilities
+* (Optional) **curl**, **rsync**, and **NetworkManager** for utilities
 
 ---
 
@@ -102,30 +104,70 @@ sudo chown -R $USER:$USER Odoo_rafa
 cd Odoo_rafa
 ```
 
+#### Automated deployment with `make`
+
+A `Makefile` is included at the repo root to automate every setup step.
+Run `make help` to list all available targets:
+
+```bash
+make help
+```
+
+For a full first-time setup on a fresh machine:
+
+```bash
+make install        # create hw_user, certs, deploy hw_proxy, enable services, build images
+# then edit your .env files (see post-install instructions printed by make install)
+make up             # generate odoo.conf, fix volumes, start all containers
+```
+
+For day-to-day operations:
+
+```bash
+make update         # git pull + redeploy hw_proxy + rebuild containers
+make status         # show status of all systemd services and Docker containers
+make backup         # trigger a PostgreSQL database backup
+make logs           # follow all container logs
+```
+
+> The subsequent sections below describe each step in detail for reference or manual setup.
+
 ---
 
-### 3️⃣ [`hw_proxy` Service](./fiesta_pos/hw_proxy/hw_proxy/README.md)
+### 3️⃣ [`hw_proxy` Service](./hw_proxy/README.md)
 
 The **`hw_proxy`** FastAPI service runs **directly on the host machine** and acts as a bridge between **Odoo POS** and **local hardware** such as printers and cash drawers.
 
 It provides API endpoints for:
 
 * 🖨️ **ESC/POS printer control** (e.g., Posiflex PP6800, Epson TM series)
-* 💾 **Database backups** (PostgreSQL dump + ZIP download)
+* 💾 **Database backups** (PostgreSQL `pg_dump` via container)
 * 🔌 **System actions** (reboot, shutdown, restart containers)
 * ⚙️ **Serial port configuration** and **hardware enumeration**
 
 Setup includes:
 
-* Creating a dedicated `hw_user`
-* Configuring `udev` permissions for `/dev/tty*`
+* Creating a dedicated `hw_user` (added to `dialout` and `lp` groups)
 * Enabling `systemd` services (`hw_proxy.service`, `serial-config.service`)
 
-📘 Full setup → [View hw_proxy README](./fiesta_pos/hw_proxy/hw_proxy/README.md)
+📘 Full setup → [View hw_proxy README](./hw_proxy/README.md)
 
 ---
 
-### 4️⃣ [Install, Secure, and Configure Docker (with mTLS and `userns-remap`)](./docker/README.md)
+### 4️⃣ [Post-Deploy Security Hardening](./SECURITY.md)
+
+Before going live, complete the mandatory hardening steps:
+
+* Add `hw_user` to `dialout` and `lp` groups
+* Configure `ufw` firewall rules
+* Change all default passwords
+* Review production environment flags
+
+📘 Full checklist → [View SECURITY.md](./SECURITY.md)
+
+---
+
+### 5️⃣ [Install, Secure, and Configure Docker (with mTLS and `userns-remap`)](./docker/README.md)
 
 Install and harden Docker Engine for a secure local environment:
 
@@ -139,7 +181,7 @@ Install and harden Docker Engine for a secure local environment:
 
 ---
 
-### 5️⃣ [Set up Docker Compose](./docker-compose/README.md)
+### 6️⃣ [Set up Docker Compose](./docker-compose/README.md)
 
 Use Docker Compose to orchestrate Odoo, PostgreSQL, Traefik, and `hw_status_service`.
 
@@ -154,7 +196,7 @@ Features include:
 
 ---
 
-### 6️⃣ Configure Environment
+### 7️⃣ Configure Environment
 
 Copy and customize the environment files:
 
@@ -179,7 +221,7 @@ The same credentials should appear in `odoo/config/odoo.conf`.
 
 ---
 
-### 7️⃣ Launch the Stack
+### 8️⃣ Launch the Stack
 
 Build and start all containers:
 

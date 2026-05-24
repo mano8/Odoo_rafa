@@ -12,7 +12,7 @@
             "module": "uvicorn",
             "args": [
                 "hw_proxy.main:app",
-                "--port=8015",
+                "--port=9002",
                 "--host=0.0.0.0",
                 "--reload"
             ],
