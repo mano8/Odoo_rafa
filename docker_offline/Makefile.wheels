@@ -1,21 +1,37 @@
 PYTHON ?= python3
 PIP ?= pip
-REQ_PROD = ../hw_status/hw_status/requirements-docker.txt
-REQ_DEV = ../hw_status/hw_status/requirements-docker-dev.txt
-WHEELHOUSE = ../hw_status/wheelhouse
-WHEELHOUSE_DEV = ../hw_status/wheelhouse_dev
 
-.PHONY: prod dev clean
+# hw_status
+REQ_PROD        = ../hw_status/hw_status/requirements-docker.txt
+REQ_DEV         = ../hw_status/hw_status/requirements-docker-dev.txt
+WHEELHOUSE      = ../hw_status/wheelhouse
+WHEELHOUSE_DEV  = ../hw_status/wheelhouse_dev
+
+# hw_proxy
+REQ_HW_PROXY_DEV       = ../hw_proxy/hw_proxy/requirements-docker-dev.txt
+WHEELHOUSE_HW_PROXY_DEV = ../hw_proxy/wheelhouse_dev
+
+.PHONY: prod dev hw-status-dev hw-proxy-dev dev-all clean
 
 prod:
 	@mkdir -p $(WHEELHOUSE)
 	@rm -rf $(WHEELHOUSE)/*
 	$(PYTHON) -m $(PIP) download --only-binary=:all: --python-version 3.11 --dest $(WHEELHOUSE) -r $(REQ_PROD)
 
-dev:
+# hw_status dev wheels (alias kept for backwards compatibility)
+dev: hw-status-dev
+
+hw-status-dev:
 	@mkdir -p $(WHEELHOUSE_DEV)
 	@rm -rf $(WHEELHOUSE_DEV)/*
 	$(PYTHON) -m $(PIP) download --only-binary=:all: --python-version 3.11 --dest $(WHEELHOUSE_DEV) -r $(REQ_DEV)
 
+hw-proxy-dev:
+	@mkdir -p $(WHEELHOUSE_HW_PROXY_DEV)
+	@rm -rf $(WHEELHOUSE_HW_PROXY_DEV)/*
+	$(PYTHON) -m $(PIP) download --only-binary=:all: --python-version 3.11 --dest $(WHEELHOUSE_HW_PROXY_DEV) -r $(REQ_HW_PROXY_DEV)
+
+dev-all: hw-status-dev hw-proxy-dev
+
 clean:
-	@rm -rf $(WHEELHOUSE) $(WHEELHOUSE_DEV)
+	@rm -rf $(WHEELHOUSE) $(WHEELHOUSE_DEV) $(WHEELHOUSE_HW_PROXY_DEV)
