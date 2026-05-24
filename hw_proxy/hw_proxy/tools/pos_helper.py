@@ -361,8 +361,17 @@ class EscPosHelper(DeviceHelper):
             if self.has_fast_printer_check():
                 logger.debug("[print_receipt] Convert receipt to Image...")
                 img = self.format_base64_to_image(receipt)
+                print_width = self.device.print_width if self.device else None
+                if print_width and img.width != print_width:
+                    new_height = int(img.height * print_width / img.width)
+                    img = img.resize((print_width, new_height), Image.LANCZOS)
+                image_conf = (
+                    self.device.image_conf.model_dump() if self.device
+                    and self.device.image_conf
+                    else {"impl": "bitImageRaster", "fragment_height": 256}
+                )
                 d = Dummy()
-                d.image(img, impl="bitImageColumn")
+                d.image(img, **image_conf)
                 d.cut(feed=True)
                 self.printer._raw(b'\x1D\x28\x45\x05\x00\x01\x01\x14')
                 self.printer._raw(d.output)
@@ -515,8 +524,9 @@ class EscPosHelper(DeviceHelper):
                 b64string = b64string.split(",", 1)[1]
             raw = base64.b64decode(b64string)
 
-            # 2. Abrir imagen en memoria
-            return Image.open(BytesIO(raw)).convert("RGB")
+            # 2. Abrir imagen en memoria — convert to 1-bit here so python-escpos
+            #    skips its internal RGB→grayscale→dither pipeline
+            return Image.open(BytesIO(raw)).convert("L").convert("1")
         except Exception as e:
             raise HwPrinterError(
                 "Error: Unable to convert "

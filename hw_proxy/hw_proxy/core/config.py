@@ -176,7 +176,7 @@ class Settings(BaseSettings):
 
     @classmethod
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
-    def validate_cors_origins(cls, v: str) -> List[str]:
+    def validate_cors_origins(cls, v: str) -> str:
         """
         Validate the BACKEND_CORS_ORIGINS environment variable.
         If it's a string, parse it into a list of valid origins.
@@ -185,7 +185,8 @@ class Settings(BaseSettings):
             raise ValidationError(
                 "BACKEND_CORS_ORIGINS must be a comma-separated string."
             )
-        return isinstance(parse_cors(v), list)
+        parse_cors(v)  # raises ValueError on invalid entries
+        return v
 
     @computed_field
     @property
@@ -195,7 +196,7 @@ class Settings(BaseSettings):
         with FRONTEND_HOST (host only, without scheme).
         FRONTEND_HOST is stripped of its scheme and trailing slash.
         """
-        frontend = self.FRONTEND_HOST
+        frontend = str(self.FRONTEND_HOST).rstrip("/")
         origins = parse_cors(self.BACKEND_CORS_ORIGINS)
         if frontend not in origins:
             origins.append(frontend)
@@ -226,36 +227,33 @@ class Settings(BaseSettings):
                     )
         return self
 
-    @classmethod
     @model_validator(mode="after")
-    def enforce_secure_and_required_values(cls, values: dict) -> dict:
+    def enforce_secure_and_required_values(self) -> "Settings":
         """
         Ensure all required string fields are non-empty after stripping.
         """
         insecure_default = "changethis"
-        # List of fields that must be non-empty.
-        for field_item in cls.required_fields:
-            val = values.get(field_item)
+        for field_item in self.required_fields:
+            val = getattr(self, field_item, None)
             if not val or (isinstance(val, str) and not val.strip()):
-                raise ValidationError(
+                raise ValueError(
                     f"The environment variable '{field_item}' "
                     "must be provided and not be empty."
                 )
-        # Enforce that secret values are changed.
-        for field_item in cls.secret_fields:
-            val = values[field_item]
+        for field_item in self.secret_fields:
+            val = getattr(self, field_item)
             if hasattr(val, "get_secret_value"):
                 raw_val = val.get_secret_value()
             else:
                 raw_val = val
             if isinstance(raw_val, str)\
                     and raw_val.strip().lower() == insecure_default:
-                raise ValidationError(
-                    "Insecure value for '{field_item}' "
+                raise ValueError(
+                    f"Insecure value for '{field_item}' "
                     f"(found '{insecure_default}'). "
                     f"Please set a strong, unique value for {field_item}."
                 )
-        return values
+        return self
 
 
 try:

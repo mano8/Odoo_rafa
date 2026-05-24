@@ -33,7 +33,9 @@ class SerialDeviceSchemas(BaseModel):
 
 class PrinteImageConfSchemas(BaseModel):
     """Device pydantic Schemas"""
-    impl: Literal["bitImageColumn", "Image"]
+    impl: Literal["bitImageColumn", "bitImageRaster", "Image"]
+    fragment_height: int = 256
+    center: bool = False
 
 
 class DeviceConfigSchemas(BaseModel):
@@ -50,6 +52,7 @@ class DeviceConfigSchemas(BaseModel):
         SerialDeviceSchemas
     ]
     image_conf: Optional[PrinteImageConfSchemas] = None
+    print_width: Optional[int] = None
 
 
 class PrintRequest(BaseModel):
