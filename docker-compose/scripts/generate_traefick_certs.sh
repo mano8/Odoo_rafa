@@ -80,7 +80,7 @@ openssl pkcs12 -export \
 echo "[✔] Certificate files created in: $OUT_DIR"
 
 # === Optional: Add to /etc/hosts ===
-if grep -qv "$DOMAIN" /etc/hosts && [[ "$DOMAIN" != "$IP" ]]; then
+if ! grep -q "$DOMAIN" /etc/hosts && [[ "$DOMAIN" != "$IP" ]]; then
   echo "[+] Adding $DOMAIN to /etc/hosts..."
   echo "$IP $DOMAIN" | sudo tee -a /etc/hosts
 else

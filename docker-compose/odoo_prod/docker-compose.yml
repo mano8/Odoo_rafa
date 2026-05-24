@@ -34,6 +34,11 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       PGDATA: /var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_DATABASE}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     logging:
       driver: "journald"
     restart: unless-stopped
@@ -47,10 +52,10 @@ services:
     env_file:
       - ./hw_status.env
     environment:
-      ENVIRONMENT: development
-      SET_OPEN_API: true
-      SET_DOCS: true
-      SET_REDOC: true
+      ENVIRONMENT: production
+      SET_OPEN_API: false
+      SET_DOCS: false
+      SET_REDOC: false
       PRINTER_KEY: "PP6800"
     volumes:
       - ../../hw_status/hw_status:/opt/hw_status
@@ -72,8 +77,6 @@ services:
       - ./odoo/config:/etc/odoo
       - ./odoo/addons:/mnt/extra-addons
       - ./odoo/fonts.scss:/usr/lib/python3/dist-packages/odoo/addons/web/static/fonts/fonts.scss
-    links:
-      - "fiesta_db:db"
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.odoo.loadbalancer.server.port=8069"
@@ -84,8 +87,8 @@ services:
           echo "Database odoo exists, starting normally...";
           exec odoo --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD" -u pos_indv_receipt --dev=css;
         else
-          echo "Database odoo missing — initializing with -i base...";
-          exec odoo -i base --without-demo=True --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD" --stop-after-init &&
+          echo "Database odoo missing — initializing...";
+          odoo -i base,pos_indv_receipt --without-demo=True --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD" --stop-after-init &&
           exec odoo --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD";
         fi
       '
@@ -94,7 +97,8 @@ services:
     logging:
       driver: "journald"
     depends_on:
-      - fiesta_db
+      fiesta_db:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - odoo_network

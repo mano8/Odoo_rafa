@@ -1,0 +1,26 @@
+# One-shot wheel builder — run ONCE before the main stack (requires internet).
+#
+#   docker compose -f docker-compose.init.yml run --rm wheel-builder
+#
+# Downloads all Python dev wheels for hw_proxy and hw_status into the
+# wheelhouse_dev/ directories used by the offline Dockerfiles.
+# Works on Windows 11, Linux, and macOS — no make required.
+
+services:
+  wheel-builder:
+    image: python:3.11-slim
+    volumes:
+      - ../../hw_proxy/hw_proxy/requirements-docker-dev.txt:/req/hw_proxy.txt:ro
+      - ../../hw_status/hw_status/requirements-docker-dev.txt:/req/hw_status.txt:ro
+      - ../../hw_proxy/wheelhouse_dev:/out/hw_proxy
+      - ../../hw_status/wheelhouse_dev:/out/hw_status
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        echo '>>> Downloading hw_proxy dev wheels...'
+        pip download --quiet --only-binary=:all: --dest /out/hw_proxy -r /req/hw_proxy.txt
+        echo '>>> Downloading hw_status dev wheels...'
+        pip download --quiet --only-binary=:all: --dest /out/hw_status -r /req/hw_status.txt
+        echo '>>> Done. Wheels written to hw_proxy/wheelhouse_dev/ and hw_status/wheelhouse_dev/'

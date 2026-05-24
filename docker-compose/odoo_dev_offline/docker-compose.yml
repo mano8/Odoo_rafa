@@ -1,0 +1,158 @@
+services:
+  fiesta_db:
+    image: postgres:13.21-alpine3.20
+    shm_size: 128mb
+    volumes:
+      - ./postgres/pgdata:/var/lib/postgresql/data/pgdata
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    logging:
+      driver: "json-file"
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+  hw_proxy_service:
+    build:
+      context: ../../hw_proxy
+      dockerfile: ./hw_proxy/Dockerfile.offline.dev
+    # Run as root so the CMD can chmod /dev/ttyACM0 (usbipd creates it crw------- root root)
+    user: root
+    env_file:
+      - ./hw_proxy.env
+    environment:
+      ENVIRONMENT: development
+      SET_OPEN_API: "true"
+      SET_DOCS: "true"
+      SET_REDOC: "true"
+      PRINTER_KEY: "PP6800"
+      VSCODE_DEBUG: "false"
+    volumes:
+      - ../../hw_proxy/hw_proxy:/opt/hw_proxy
+      - ./hw_proxy.env:/opt/hw_proxy/.env:ro
+    # Serial device: on Linux the printer appears as /dev/ttyACM0.
+    # On Windows 11 + Docker Desktop, first attach via usbipd-win (see README).
+    # privileged gives the container access to all host devices; needed because
+    # the dialout GID inside python:3.11-slim may differ from the host's GID.
+    privileged: true
+    devices:
+      - /dev/ttyACM0:/dev/ttyACM0
+    ports:
+      - "9002:9002"
+      - "5679:5679"
+    logging:
+      driver: "json-file"
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+  hw_status_service:
+    build:
+      context: ../../hw_status
+      dockerfile: ./hw_status/Dockerfile.offline.dev
+    env_file:
+      - ./hw_status.env
+    environment:
+      ENVIRONMENT: development
+      SET_OPEN_API: "true"
+      SET_DOCS: "true"
+      SET_REDOC: "true"
+      PRINTER_KEY: "PP6800"
+      VSCODE_DEBUG: "false"
+    volumes:
+      - ../../hw_status/hw_status:/opt/hw_status
+      - ./hw_status.env:/opt/hw_status/.env:ro
+    userns_mode: "host"
+    ports:
+      - "8015:8015"
+      - "5678:5678"
+    logging:
+      driver: "json-file"
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+  fiesta_odoo:
+    image: odoo:18.0
+    volumes:
+      - ./odoo/data:/var/lib/odoo:rw
+      - ./odoo/config:/etc/odoo:rw
+      - ./odoo/addons:/mnt/extra-addons:ro
+    ports:
+      - "9000:8069"
+    extra_hosts:
+      - "fonts.odoo.com:${HOST_IP:-192.168.1.146}"
+    command: >
+      bash -c '
+        export PGPASSWORD="$DB_PASSWORD"
+        if psql -h fiesta_db -U "$DB_USER" -d "$DB_DATABASE" -tAc "SELECT 1 FROM res_users LIMIT 1;" 2>/dev/null | grep -q 1; then
+          echo "Database exists, starting normally...";
+          exec odoo --dev=reload --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD" -u pos_indv_receipt,pos_json_printer;
+        else
+          echo "Database missing — initializing...";
+          odoo -i base,pos_indv_receipt,pos_json_printer --without-demo=True --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD" --stop-after-init &&
+          exec odoo --dev=reload --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD";
+        fi
+      '
+    environment:
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    logging:
+      driver: "json-file"
+    depends_on:
+      fiesta_db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+  grafana:
+    image: grafana/grafana:12.0.1
+    volumes:
+      - ./grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/hw_proxy.json
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+networks:
+  odoo_network:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  grafana_data:
