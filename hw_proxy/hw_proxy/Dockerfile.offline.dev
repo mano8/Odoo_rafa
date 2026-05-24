@@ -1,0 +1,41 @@
+# Dockerfile.offline.dev
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      gcc \
+      build-essential \
+      python3-dev \
+      pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --gid 1000 appuser && \
+    useradd --uid 1000 --gid appuser --create-home appuser && \
+    usermod -aG dialout appuser
+
+WORKDIR /opt
+
+RUN mkdir -p hw_proxy
+COPY --chown=appuser:appuser ./hw_proxy ./hw_proxy
+RUN chown -R appuser:appuser ./hw_proxy
+
+COPY ./hw_proxy/requirements-docker-dev.txt .
+COPY ./wheelhouse_dev ./wheelhouse
+
+# Install system-wide (no --user) so packages are accessible when docker-compose
+# overrides the user to root for serial device access.
+RUN pip install --no-index --no-cache-dir \
+      --find-links=wheelhouse \
+      -r requirements-docker-dev.txt
+
+# /opt is on sys.path so `import hw_proxy` resolves to /opt/hw_proxy/
+ENV PYTHONPATH=/opt
+
+EXPOSE 9002
+EXPOSE 5679
+
+# usbipd creates /dev/ttyACM0 as crw------- root root (no group bits).
+# chmod opens it before dropping into uvicorn. docker-compose sets user: root
+# so this step has the required permissions.
+CMD ["bash", "-c", "chmod a+rw /dev/ttyACM0 2>/dev/null || true; if [ \"$VSCODE_DEBUG\" = \"true\" ]; then exec python -m debugpy --listen 0.0.0.0:5679 --wait-for-client -m uvicorn hw_proxy.main:app --host 0.0.0.0 --port 9002 --reload; else exec uvicorn hw_proxy.main:app --host 0.0.0.0 --port 9002 --reload --proxy-headers --forwarded-allow-ips \"*\"; fi"]
