@@ -5,13 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "hw_proxy",
+            "name": "hw_status",
             "type": "debugpy",
             "cwd": "${workspaceFolder}",
             "request": "launch",
             "module": "uvicorn",
             "args": [
-                "hw_proxy.main:app",
+                "hw_status.main:app",
                 "--port=8015",
                 "--host=0.0.0.0",
                 "--reload"

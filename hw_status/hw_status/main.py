@@ -1,5 +1,6 @@
 """FastAPI Async IoT Box Proxy for Odoo (Printer)"""
 import logging
+import socket
 from ipaddress import ip_address, ip_network
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
@@ -19,9 +20,10 @@ logger = logging.getLogger("hw_status")
 
 # Networks you trust
 TRUSTED_NETWORKS = [
+    ip_network("10.0.0.0/8"),
     ip_network("172.16.0.0/12"),
-    ip_network("192.168.1.0/24"),
-    ip_network("127.0.0.0/16")
+    ip_network("192.168.0.0/16"),
+    ip_network("127.0.0.0/8"),
 ]
 
 
@@ -39,9 +41,9 @@ def is_ip_allowed(client_ip: str) -> bool:
 
 def is_origin_allowed(origin: str) -> bool:
     """
-    If an Origin header is present, parse its hostname, convert to IP,
-    and check if it also lies in TRUSTED_NETWORKS.  If parsing fails,
-    or it's not in a trusted range, return False.
+    If an Origin header is present, resolve its hostname to an IP and
+    check if it lies in TRUSTED_NETWORKS.  Handles both numeric IPs and
+    hostnames like 'localhost'.
     """
     if not origin:
         return True  # no Origin header—let it pass to IP‐check
@@ -50,7 +52,10 @@ def is_origin_allowed(origin: str) -> bool:
         hostname = parsed.hostname
         if hostname is None:
             return False
-        ip = ip_address(hostname)
+        try:
+            ip = ip_address(hostname)
+        except ValueError:
+            ip = ip_address(socket.gethostbyname(hostname))
         return any(ip in net for net in TRUSTED_NETWORKS)
     except Exception:
         return False

@@ -1,14 +1,17 @@
-# Dockerfile.offline
+# Dockerfile.offline.dev
+FROM python:3.11-slim
 
-# Start from pre-built fat image
-FROM my-python-3.11-fat:latest
-
-# Set environment variables
 ENV PYTHONUNBUFFERED=1 \
-    # Add the local user's bin directory to PATH
     PATH="/home/appuser/.local/bin:$PATH"
 
-# Create a non-root user and group
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      gcc \
+      build-essential \
+      python3-dev \
+      pkg-config \
+      dos2unix \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN groupadd --gid 1000 appuser && \
     useradd --uid 1000 --gid appuser --create-home appuser
 
@@ -36,16 +39,12 @@ RUN pip install --no-index --no-cache-dir --user \
       -r requirements-docker-dev.txt
 
 
-RUN dos2unix /opt/hw_status/scripts/docker_start.sh
+# /opt is on sys.path so `import hw_status` resolves to /opt/hw_status/
+ENV PYTHONPATH=/opt
 
-# Ensure scripts have execution permission
-RUN chmod +x /opt/hw_status/scripts/docker_start.sh
-
-# Set the PYTHONPATH to ensure the hw_status module is found
-ENV PYTHONPATH=/opt/hw_status
-
-# Expose FastAPI port (use 8015)
 EXPOSE 8015
+EXPOSE 5678
 
-# Use the entrypoint script as CMD, which will run migrations and then launch uvicorn
-CMD ["/opt/hw_status/scripts/docker_start.sh"]
+# Inline startup so CRLF line endings in volume-mounted scripts never cause issues.
+# exec replaces the shell (PID 1) with the target process for correct signal handling.
+CMD ["bash", "-c", "if [ \"$VSCODE_DEBUG\" = \"true\" ]; then exec python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m uvicorn hw_status.main:app --host 0.0.0.0 --port 8015 --reload; else exec uvicorn hw_status.main:app --host 0.0.0.0 --port 8015 --reload --proxy-headers --forwarded-allow-ips \"*\"; fi"]
