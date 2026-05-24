@@ -42,9 +42,9 @@ In this stack, the **FastAPI `hw_proxy_service`** bridges Odoo with your **POS p
 
 See:
 
-* `../fiesta_pos/hw_proxy/hw_proxy/README.md` — udev & serial setup
-* `../fiesta_pos/hw_proxy/hw_proxy/core/supported_devices.py` — printer profiles
-* `../fiesta_pos/hw_proxy/hw_proxy/en.example.txt` — `.env` example for the service
+* `../hw_proxy/README.md` — udev & serial setup
+* `../hw_proxy/hw_proxy/core/supported_devices.py` — printer profiles
+* `../hw_proxy/hw_proxy/en.example.txt` — `.env` example for the service
 
 ---
 
@@ -130,7 +130,7 @@ sudo docker compose up --build --remove-orphans
 
 > First run may take longer (images, dependencies, DB init checks).
 
-### Init data base in Oddo container
+### Init database in Odoo container
 
 Manual DB initialization (optional):
 
@@ -141,7 +141,7 @@ sudo docker compose run --rm fiesta_odoo bash
 Inside the container:
 
 ```bash
-odoo --init base \
+odoo --init base,pos_indv_receipt \
   --database odoo \
   --stop-after-init \
   --db_host=fiesta_db \
@@ -311,4 +311,4 @@ sudo docker logs -f odoo_dev-fiesta_odoo-1
 
 * [**Docker hardening (mTLS, userns-remap, journald):**](../docker/README.md)
 * [**Manual mTLS certificate generation:**](../docker/docker_manual_certs.md)
-* [**hw_proxy setup:**](../fiesta_pos/hw_proxy/README.md)
+* [**hw_proxy setup:**](../hw_proxy/README.md)

@@ -1,0 +1,16 @@
+*.env*
+*.crt
+*.pem
+*.key
+
+# Odoo volumes
+*odoo/addons/*
+*odoo/data/*
+*odoo/config/*
+*odoo.conf
+
+# Postgres SQL volumes
+*postgres/pgdata/*
+
+grafana_data/*
+prometheus_data/*

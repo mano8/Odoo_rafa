@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: hw_proxy
+    static_configs:
+      - targets: ["hw_proxy_service:9002"]
+    metrics_path: /hw_proxy/metrics
