@@ -171,10 +171,12 @@ class Settings(BaseSettings):
     SECRET_KEY: SecretStr
 
     BACKEND_HOST: HttpUrl
+    HW_PROXY_URL: HttpUrl = "http://localhost:9002"
     SENTRY_DSN: HttpUrl | None = None
     PRINTER_KEY: str = Field(..., pattern=ValidationConstants.KEY_REGEX.pattern)
 
     LOG_LEVEL: str = "Warning"
+    VSCODE_DEBUG: bool = False
 
     @model_validator(mode="after")
     def validate_sensitive_fields(self) -> "Settings":

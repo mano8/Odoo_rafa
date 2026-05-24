@@ -45,7 +45,7 @@ const App = {
         HARDWARE_UPDATE_INTERVAL_MS: 60000, // 60 segundos
     },
     API: {
-        _baseUrl: 'https://192.168.1.146:9001/hw_proxy/system',
+        _baseUrl: window.HW_PROXY_BASE_URL || 'http://localhost:9002/hw_proxy/system',
         async _fetch(url, options = {}) {
             //await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 200));
             //console.log(`Simulando fetch a: ${url}`, options);

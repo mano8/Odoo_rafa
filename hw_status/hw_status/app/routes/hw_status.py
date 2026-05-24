@@ -33,12 +33,12 @@ async def system_status(
     templates: Jinja2Templates = Depends(get_templates)
 ):
     """Emulates IoT Box hello endpoint"""
-    context = {
-        "request": request,
-        "base_url": str(request.base_url),
-        "google_login_url": "",
-    }
     return templates.TemplateResponse(
-        "status.html",
-        context
+        request=request,
+        name="status.html",
+        context={
+            "base_url": str(request.base_url),
+            "google_login_url": "",
+            "hw_proxy_url": str(settings.HW_PROXY_URL).rstrip("/"),
+        },
     )
