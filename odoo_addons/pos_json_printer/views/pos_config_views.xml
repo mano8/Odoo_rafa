@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="pos_config_form_view_inherit_json_printer" model="ir.ui.view">
+        <field name="name">pos.config.form.json.printer</field>
+        <field name="model">pos.config</field>
+        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
+        <field name="arch" type="xml">
+            <!-- Add JSON printer options after the printer URL field -->
+            <xpath expr="//field[@name='iface_print_via_proxy']" position="after">
+                <field name="use_json_printer" widget="boolean_toggle"/>
+                <field name="hw_proxy_json_url"
+                       invisible="not use_json_printer"
+                       placeholder="http://&lt;hostname&gt;:9002  (blank = auto-detect)"/>
+                <field name="receipt_char_size"
+                       invisible="not use_json_printer"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
