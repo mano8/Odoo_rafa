@@ -3,6 +3,7 @@ Hw_proxy utils
 """
 import logging
 import os
+import shutil
 from os.path import join as Pjoin
 import termios
 import subprocess
@@ -10,6 +11,7 @@ from datetime import datetime, timedelta
 from typing import List
 from dateutil.parser import parse as dateparse
 from hw_proxy.core.exceptions import HwHardwareError
+from hw_proxy.core.supported_devices import device_list
 from hw_proxy.tools.pos_helper import EscPosHelper
 from hw_proxy.core.config import settings
 
@@ -142,12 +144,20 @@ class HwUtils:
             # Stopbits: if CSTOPB set, that means 2 stop bits; else 1
             stopbits = 2 if (cflag & termios.CSTOPB) else 1
 
+            # Merge device-config fields that termios cannot report
+            dev_conf = next(
+                (d["conf"] for d in device_list if d.get("conf", {}).get("devfile") == devfile),
+                {},
+            )
             return {
                 "devfile": devfile,
                 "baudrate": baudrate,
                 "bytesize": bytesize,
                 "parity": parity,
                 "stopbits": stopbits,
+                "timeout": dev_conf.get("timeout"),
+                "dsrdtr": dev_conf.get("dsrdtr"),
+                "profile": dev_conf.get("profile"),
             }
         except Exception as e:
             raise HwHardwareError(
@@ -158,38 +168,41 @@ class HwUtils:
             ) from e
 
     @staticmethod
-    def get_printer_conection_status() -> dict:
-        """Get posiflex connexion status"""
-        result = None
-        try:
-            result = subprocess.run(
-                ["/usr/bin/lsusb"],
-                capture_output=True,
-                text=True
-            )
-            if result.returncode != 0:
-                result = {
-                    "status": "error",
-                    "message": "Failed to run lsusb"
-                }
-            output = result.stdout.lower()
-            if "0d3a:0368" in output:
-                result = {
-                    "status": "connected",
-                    "message": "Posiflex PP6800 detected on the system."
-                }
-            else:
-                result = {
-                    "status": "disconnected",
-                    "message": "Posiflex PP6800 not found."
-                }
-        except Exception as e:
-            raise HwHardwareError(
-                "[get_posiflex_status] Fatal Error: "
-                "Unable to get current posiflex conexion status "
-                f"error: {e}"
-            ) from e
-        return result
+    def get_printer_conection_status(devfile: str) -> dict:
+        """
+        Check printer connection status.
+
+        Primary check: device file presence — reliable in Docker/usbipd setups
+        where the printer arrives as a serial CDC/ACM device, not on the USB bus.
+        Secondary check: lsusb (bare-metal Linux only, skipped when not installed).
+        """
+        if os.path.exists(devfile):
+            return {
+                "status": "connected",
+                "message": f"Device {devfile} is present.",
+            }
+
+        lsusb_bin = shutil.which("lsusb")
+        if lsusb_bin:
+            try:
+                proc = subprocess.run(
+                    [lsusb_bin],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if proc.returncode == 0 and "0d3a:0368" in proc.stdout.lower():
+                    return {
+                        "status": "connected",
+                        "message": "Posiflex PP6800 detected via lsusb.",
+                    }
+            except Exception:
+                pass
+
+        return {
+            "status": "disconnected",
+            "message": f"Posiflex PP6800 not found (no {devfile}, no lsusb match).",
+        }
 
     @staticmethod
     def get_printer_global_status() -> dict:
@@ -198,7 +211,7 @@ class HwUtils:
         try:
             pos = EscPosHelper(settings.PRINTER_KEY)
             status = pos.get_full_printer_status()
-            conection = HwUtils.get_printer_conection_status()
+            conection = HwUtils.get_printer_conection_status(pos.device.conf.devfile)
             serial_config = HwUtils.get_serial_config(pos.device.conf.devfile)
 
             result = {

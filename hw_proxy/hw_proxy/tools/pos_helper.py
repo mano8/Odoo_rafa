@@ -147,6 +147,7 @@ class EscPosHelper(DeviceHelper):
     def get_printer_status(self, initialized: bool = False):
         """Get escpos printer status."""
         result = None
+        is_online = None
         try:
             if initialized is not True:
                 self.init_printer()
@@ -180,6 +181,7 @@ class EscPosHelper(DeviceHelper):
     def get_paper_printer_status(self, initialized: bool = False):
         """Get escpos printer status."""
         result = None
+        paper_status = None
         try:
             if initialized is not True:
                 self.init_printer()
@@ -223,6 +225,8 @@ class EscPosHelper(DeviceHelper):
     def get_full_printer_status(self, initialized: bool = False):
         """Get escpos printer status."""
         result = None
+        is_online = None
+        paper_status = None
         try:
             if initialized is not True:
                 self.init_printer()

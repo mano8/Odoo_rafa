@@ -170,6 +170,7 @@ class Settings(BaseSettings):
     )
 
     LOG_LEVEL: str = "Warning"
+    VSCODE_DEBUG: bool = False
     # BACKEND_CORS_ORIGINS should be provided
     # as a comma-separated string in the env file.
     BACKEND_CORS_ORIGINS: str
