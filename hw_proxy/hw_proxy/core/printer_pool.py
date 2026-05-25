@@ -35,6 +35,13 @@ from hw_proxy.tools.pos_helper import EscPosHelper
 
 logger = logging.getLogger("hw_proxy")
 
+# Width/height ESC/POS multipliers per size level (1-indexed; index 0 unused).
+# Level 1 (Small):  1× wide, 1× tall  → 42 chars/line
+# Level 2 (Normal): 1× wide, 2× tall  → 42 chars/line, double-height glyphs
+# Level 3 (Big):    2× wide, 2× tall  → 21 chars/line
+_SZ_W = (0, 1, 1, 2)
+_SZ_H = (0, 1, 2, 2)
+
 _CMD_CASHDRAWER = b"\x1B\x70\x00\x19\xFA"
 _CMD_PRE_PRINT = b"\x1D\x28\x45\x05\x00\x01\x01\x14"
 # ESC @ — initialize printer (resets all modes to power-on defaults)
@@ -246,22 +253,36 @@ class PrinterPool:
     # JSON receipt (ESC/POS text commands — ~2 KB vs ~56 KB raster)      #
     # ------------------------------------------------------------------ #
 
+    @staticmethod
+    def _fit_sz(text_len: int, max_sz: int, W: int) -> int:
+        """Largest size level ≤ max_sz at which text_len chars fit in W columns.
+
+        Uses _SZ_W to determine how many chars fit per size level so that
+        Normal (double-height, same width as Small) never triggers a reduction.
+        """
+        for sz in range(max_sz, 0, -1):
+            if text_len <= W // _SZ_W[sz]:
+                return sz
+        return 1
+
     def _encode_json_receipt(self, data: PrintReceiptJsonRequest) -> bytes:
         """Render the flat ``lines`` array from the DOM scan to ESC/POS bytes.
 
-        Each line carries its own relative size (``s``).  The global
-        ``char_size`` multiplies that: e.g. a banner with s=2 at char_size=2
-        prints at 4× (clamped to the ESC/POS max of 4).
+        Size levels (char_size 1-3):
+          1 = Small:  1× wide, 1× tall, 42 chars/line
+          2 = Normal: 1× wide, 2× tall, 42 chars/line (double-height glyphs)
+          3 = Big:    2× wide, 2× tall, 21 chars/line
 
-        Dividers always print at size-1 (full 42-char paper width).
+        The global ``char_size`` is a *maximum*. Each line auto-reduces its
+        size level so text is never truncated.
+        Dividers always print at level 1 (full 42-char width).
         """
         d = Dummy()
         W = _RECEIPT_LINE_WIDTH
-        sz = max(1, min(4, data.char_size))
+        sz = max(1, min(3, data.char_size))
 
         for line in data.lines:
-            line_sz = max(1, min(4, line.s * sz))
-            w = W // line_sz
+            max_line_sz = 1 if line.pin else max(1, min(3, line.s * sz))
 
             if line.t == "div":
                 ch = (line.dv or "-")[0]
@@ -269,26 +290,31 @@ class PrinterPool:
                 d.text(ch * W + "\n")
 
             elif line.t == "text":
+                text = line.v or ""
                 align = line.c or "left"
+                actual_sz = self._fit_sz(len(text), max_line_sz, W)
+                w = W // _SZ_W[actual_sz]
                 d.set(
                     align=align,
                     bold=line.b,
-                    width=line_sz,
-                    height=line_sz,
+                    width=_SZ_W[actual_sz],
+                    height=_SZ_H[actual_sz],
                     custom_size=True,
                 )
-                d.text((line.v or "")[:w] + "\n")
+                d.text(text[:w] + "\n")
 
             elif line.t == "row":
+                left = line.l or ""
+                right = line.r or ""
+                actual_sz = self._fit_sz(len(left) + len(right) + 1, max_line_sz, W)
+                w = W // _SZ_W[actual_sz]
                 d.set(
                     align="left",
                     bold=line.b,
-                    width=line_sz,
-                    height=line_sz,
+                    width=_SZ_W[actual_sz],
+                    height=_SZ_H[actual_sz],
                     custom_size=True,
                 )
-                left = line.l or ""
-                right = line.r or ""
                 gap = w - len(left) - len(right)
                 if gap < 1:
                     left = left[: max(0, w - len(right) - 1)]
