@@ -20,6 +20,7 @@ class ReceiptLine(BaseModel):
     c: Optional[str] = None  # "center" | "right"  (text; default "left")
     b: bool = False  # bold
     s: int = 1  # relative size multiplier (1=normal, 2=double)
+    pin: bool = False  # if True, always prints at size level 1 (ignores global char_size)
     dv: Optional[str] = None  # divider character  (div; default "-")
 
 
