@@ -1,10 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates id="template" xml:space="preserve">
     <t t-name="pos_indv_receipt.ReceiptScreen" t-inherit="point_of_sale.ReceiptScreen" t-inherit-mode="extension">
-        <xpath expr="//div[contains(@class, 'receipt-options')]" position="inside">
-            <button class="button print btn btn-lg btn-secondary w-100 py-3" t-on-click="() => doOpenProductSelectionPopup.call()">
-                <i class="fa fa-print"/> <t t-esc="labels.print_individual_receipt"/>
-            </button>
+        <xpath expr="//div[contains(@class, 'receipt-options')]/div[contains(@class, 'flex-column')]" position="before">
+            <div class="d-flex gap-1">
+                <button class="button print btn btn-lg btn-secondary flex-grow-1 py-3"
+                        t-on-click="() => doDirectPrintIndividualTickets.call()">
+                    <i t-attf-class="fa {{doDirectPrintIndividualTickets.status === 'loading' ? 'fa-fw fa-spin fa-circle-o-notch' : 'fa-print'}} me-1"/>
+                    <t t-esc="labels.print_individual_receipt"/>
+                </button>
+                <button class="button btn btn-lg btn-secondary py-3 px-3"
+                        t-on-click="() => doOpenProductSelectionPopup.call()"
+                        t-att-title="labels.print_individual_receipt_options">
+                    <i t-attf-class="fa {{doOpenProductSelectionPopup.status === 'loading' ? 'fa-fw fa-spin fa-circle-o-notch' : 'fa-sliders'}}"/>
+                </button>
+            </div>
         </xpath>
     </t>
 </templates>
