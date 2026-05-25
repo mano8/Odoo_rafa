@@ -21,10 +21,20 @@ class PosConfig(models.Model):
         ),
     )
     receipt_char_size = fields.Selection(
-        selection=[('1', 'Normal'), ('2', 'Large')],
+        selection=[
+            ('1', 'Small'),
+            ('2', 'Normal'),
+            ('3', 'Big'),
+        ],
         string="Receipt Font Size",
         default='1',
-        help="Character size for all receipt content. Use 'Large' for clients with vision issues.",
+        help=(
+            "ESC/POS character size for receipt content. "
+            "Small=1× width/height (42 chars/line), "
+            "Normal=1× width/2× height (42 chars/line, taller glyphs), "
+            "Big=2× width/height (21 chars/line). "
+            "Use 'Big' for clients with vision issues."
+        ),
     )
 
     def _load_pos_data(self, data):

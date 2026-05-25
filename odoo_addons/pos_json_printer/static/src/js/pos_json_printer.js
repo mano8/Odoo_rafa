@@ -219,8 +219,32 @@ function _walk(el, root, out) {
 }
 
 function _domToLines(rootEl) {
+    // Remove Odoo branding line ("Powered by Odoo" and any i18n equivalent):
+    // it lives in a <p> directly inside .pos-receipt-order-data.
+    for (const p of rootEl.querySelectorAll(".pos-receipt-order-data > p")) {
+        p.remove();
+    }
+
     const out = [];
     for (const child of rootEl.children) {
+        // The bottom order-data block (order number + date): always Small,
+        // with 1 blank line separating it from the payments section above.
+        if (
+            child.classList &&
+            child.classList.contains("pos-receipt-order-data") &&
+            child.querySelector("#order-date")
+        ) {
+            out.push({ t: "text", v: "" });
+            const section = [];
+            for (const gc of child.children) {
+                _walk(gc, child, section);
+            }
+            for (const line of section) {
+                line.pin = true;
+            }
+            out.push(...section);
+            continue;
+        }
         _walk(child, rootEl, out);
     }
     return out;
