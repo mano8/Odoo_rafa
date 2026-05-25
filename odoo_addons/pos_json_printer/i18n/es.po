@@ -1,0 +1,64 @@
+# Spanish translation for pos_json_printer
+# Copyright (C) 2025 Eli Serra
+# License LGPL-3.0
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 18.0\n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: 2026-05-25 00:00+0000\n"
+"Last-Translator: Eli Serra\n"
+"Language-Team: Spanish\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
+
+#. module: pos_json_printer
+#: model:ir.model.fields,field_description:pos_json_printer.field_pos_config__use_json_printer
+#: model_terms:ir.ui.view,arch_db:pos_json_printer.pos_config_form_view_inherit_json_printer
+#: model_terms:ir.ui.view,arch_db:pos_json_printer.res_config_settings_view_form_inherit_json_printer
+msgid "JSON Printer"
+msgstr "Impresora JSON"
+
+#. module: pos_json_printer
+#: model:ir.model.fields,field_description:pos_json_printer.field_pos_config__hw_proxy_json_url
+#: model_terms:ir.ui.view,arch_db:pos_json_printer.pos_config_form_view_inherit_json_printer
+#: model_terms:ir.ui.view,arch_db:pos_json_printer.res_config_settings_view_form_inherit_json_printer
+msgid "hw_proxy URL"
+msgstr "URL del hw_proxy"
+
+#. module: pos_json_printer
+#: model:ir.model.fields,field_description:pos_json_printer.field_pos_config__receipt_char_size
+#: model_terms:ir.ui.view,arch_db:pos_json_printer.pos_config_form_view_inherit_json_printer
+#: model_terms:ir.ui.view,arch_db:pos_json_printer.res_config_settings_view_form_inherit_json_printer
+msgid "Receipt Font Size"
+msgstr "Tamaño de Fuente del Ticket"
+
+#. module: pos_json_printer
+#: model:ir.model.fields.selection,name:pos_json_printer.selection__pos_config__receipt_char_size__1
+msgid "Small"
+msgstr "Pequeño"
+
+#. module: pos_json_printer
+#: model:ir.model.fields.selection,name:pos_json_printer.selection__pos_config__receipt_char_size__2
+msgid "Normal"
+msgstr "Normal"
+
+#. module: pos_json_printer
+#: model:ir.model.fields.selection,name:pos_json_printer.selection__pos_config__receipt_char_size__3
+msgid "Big"
+msgstr "Grande"
+
+#. module: pos_json_printer
+#: model_terms:ir.ui.view,arch_db:pos_json_printer.pos_config_form_view_inherit_json_printer
+#: model_terms:ir.ui.view,arch_db:pos_json_printer.res_config_settings_view_form_inherit_json_printer
+msgid "Send JSON to hw_proxy instead of PNG — 25× smaller payload, faster printing"
+msgstr "Envía JSON al hw_proxy en lugar de PNG — 25× menos datos, impresión más rápida"
+
+#. module: pos_json_printer
+#: model_terms:ir.ui.view,arch_db:pos_json_printer.pos_config_form_view_inherit_json_printer
+#: model_terms:ir.ui.view,arch_db:pos_json_printer.res_config_settings_view_form_inherit_json_printer
+msgid "http://<hostname>:9002  (blank = auto-detect)"
+msgstr "http://&lt;hostname&gt;:9002  (vacío = auto-detección)"

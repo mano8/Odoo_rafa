@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!--
+        POS Settings page (Point of Sale > Settings).
+        Model: res.config.settings
+        Fields proxied through pos_config_id.* with the pos_ prefix.
+        Location: "Connected Devices" block, after the ePos Printer setting.
+    -->
+    <record id="res_config_settings_view_form_inherit_json_printer" model="ir.ui.view">
+        <field name="name">res.config.settings.json.printer</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="point_of_sale.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//setting[@id='pos_other_devices']" position="after">
+                <setting string="JSON Printer"
+                         help="Send JSON to hw_proxy instead of PNG — 25× smaller payload, faster printing">
+                    <field name="pos_use_json_printer" widget="boolean_toggle"/>
+                    <div class="content-group ms-3" invisible="not pos_use_json_printer">
+                        <div class="row mt8">
+                            <div class="col-lg-4 o_light_label">
+                                <label string="hw_proxy URL" for="pos_hw_proxy_json_url"/>
+                            </div>
+                            <div class="col-lg-8">
+                                <field name="pos_hw_proxy_json_url"
+                                       placeholder="http://&lt;hostname&gt;:9002  (blank = auto-detect)"/>
+                            </div>
+                        </div>
+                        <div class="row mt8">
+                            <div class="col-lg-4 o_light_label">
+                                <label string="Receipt Font Size" for="pos_receipt_char_size"/>
+                            </div>
+                            <div class="col-lg-8">
+                                <field name="pos_receipt_char_size"/>
+                            </div>
+                        </div>
+                    </div>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
+    <!--
+        pos.config direct form (quick-setup wizard, + New Shop, etc.).
+        Kept as a fallback for cases where the pos.config form is opened directly.
+    -->
+    <record id="pos_config_form_view_inherit_json_printer" model="ir.ui.view">
+        <field name="name">pos.config.form.json.printer</field>
+        <field name="model">pos.config</field>
+        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//setting[@id='other_devices']" position="after">
+                <setting string="JSON Printer"
+                         help="Send JSON to hw_proxy instead of PNG — 25× smaller payload, faster printing">
+                    <field name="use_json_printer" widget="boolean_toggle"/>
+                    <div class="content-group ms-3" invisible="not use_json_printer">
+                        <div class="row mt8">
+                            <div class="col-lg-4 o_light_label">
+                                <label string="hw_proxy URL" for="hw_proxy_json_url"/>
+                            </div>
+                            <div class="col-lg-8">
+                                <field name="hw_proxy_json_url"
+                                       placeholder="http://&lt;hostname&gt;:9002  (blank = auto-detect)"/>
+                            </div>
+                        </div>
+                        <div class="row mt8">
+                            <div class="col-lg-4 o_light_label">
+                                <label string="Receipt Font Size" for="receipt_char_size"/>
+                            </div>
+                            <div class="col-lg-8">
+                                <field name="receipt_char_size"/>
+                            </div>
+                        </div>
+                    </div>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

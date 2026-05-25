@@ -10,6 +10,7 @@ import { patch } from "@web/core/utils/patch";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
 import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
+import { uuidv4 } from "@point_of_sale/utils";
 
 
 /**
@@ -26,10 +27,12 @@ patch(ReceiptScreen.prototype, {
         this.dialog = useService("dialog");
 
         this.labels = {
-            print_individual_receipt: _t("Print Individual Receipts")
+            print_individual_receipt: _t("Print Individual Receipts"),
+            print_individual_receipt_options: _t("Print options"),
         };
 
         this.doOpenProductSelectionPopup = useTrackedAsync(() => this._onClickPrintProductTickets());
+        this.doDirectPrintIndividualTickets = useTrackedAsync(() => this._onClickDirectPrintIndividualTickets());
         // This function is used to print the full receipt for the order, including all prepaid products
         this.doPrintFullPrepaidReceipt = useTrackedAsync(({
             basic = false,
@@ -50,6 +53,23 @@ patch(ReceiptScreen.prototype, {
             basic: basic,
             order_line: order_line
         }));
+    },
+
+    async _onClickDirectPrintIndividualTickets() {
+        const order = this.currentOrder;
+        if (!order || order.get_orderlines().length === 0) {
+            await this.dialog.add(AlertDialog, {
+                title: _t("Empty Order"),
+                body: _t("There are no products in this order to print tickets for."),
+            });
+            return;
+        }
+        const selectedOrderLines = order.get_orderlines().map(line => ({
+            ...line,
+            prepayed_quantity: line.get_quantity(),
+            prepaid_uuid: uuidv4(),
+        }));
+        await this._printIndividualProductTickets(selectedOrderLines, false, false, false);
     },
 
     async _onClickPrintProductTickets() {
