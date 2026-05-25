@@ -1,0 +1,26 @@
+[Unit]
+Description=Monitoring Stack (Prometheus + Grafana)
+Documentation=https://github.com/mano8/Odoo_rafa
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+Before=odoo-pos.service
+ConditionPathExists=/opt/Odoo_rafa/docker-compose/monitoring/.env
+ConditionPathExists=/opt/Odoo_rafa/docker-compose/monitoring/docker-compose.yml
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/Odoo_rafa/docker-compose/monitoring
+Environment=COMPOSE_PROJECT_NAME=monitoring
+ExecStartPre=/usr/bin/test -f /opt/Odoo_rafa/docker-compose/monitoring/.env
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do docker info >/dev/null 2>&1 && exit 0; sleep 2; done; exit 1'
+ExecStartPre=/bin/sh -c 'docker network inspect monitoring_shared >/dev/null 2>&1 || docker network create --driver bridge monitoring_shared'
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 10); do docker network inspect monitoring_shared >/dev/null 2>&1 && exit 0; sleep 1; done; exit 1'
+ExecStart=/bin/sh -c "/usr/libexec/docker/cli-plugins/docker-compose up -d --remove-orphans --pull=missing"
+ExecStop=/bin/sh -c "/usr/libexec/docker/cli-plugins/docker-compose down --remove-orphans"
+TimeoutStartSec=180
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

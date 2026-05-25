@@ -192,3 +192,16 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Docker env and secrets — NEVER commit these
+docker-compose/monitoring/.env
+docker-compose/odoo_prod/.env
+docker-compose/odoo_addon/.env
+docker-compose/hardened_odoo_prod/.env
+docker-compose/hardened_odoo_prod/auth.env
+docker-compose/hardened_odoo_prod/backup_restore.env
+docker-compose/*/traefik/certs/*.key
+docker/certs/*.pem
+docker/certs/*.key
+mkcert-ca/
+docker-compose/*/traefik/acme.json

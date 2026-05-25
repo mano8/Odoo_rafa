@@ -41,6 +41,19 @@ http:
       service: hw-status-service
       tls: {}
 
+    # Grafana router — priority 100 wins over odoo-router PathPrefix('/') catch-all
+    grafana-router:
+      entryPoints:
+        - api
+      rule: "PathPrefix(`/grafana`)"
+      priority: 100
+      service: grafana-service
+      middlewares:
+        - grafana-strip
+        - grafana-security
+        - grafana-retry
+      tls: {}
+
   services:
     odoo-service:
       loadBalancer:
@@ -55,6 +68,12 @@ http:
         servers:
           - url: "http://hw_status_service:8015"
 
+    grafana-service:
+      loadBalancer:
+        servers:
+          # 'grafana' resolves via Docker embedded DNS on monitoring_shared network
+          - url: "http://grafana:3000"
+
   middlewares:
     ip-allowlist:
       IPAllowList:
@@ -62,3 +81,20 @@ http:
         sourceRange:
           - "127.0.0.1/32"
           - "::1/128"
+
+    grafana-strip:
+      stripPrefix:
+        prefixes:
+          - "/grafana"
+
+    grafana-security:
+      headers:
+        frameDeny: true
+        browserXssFilter: true
+        contentTypeNosniff: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+
+    grafana-retry:
+      retry:
+        attempts: 3
+        initialInterval: "500ms"
