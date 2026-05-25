@@ -41,5 +41,6 @@ async def system_status(
             "google_login_url": "",
             "hw_proxy_url": str(settings.HW_PROXY_URL).rstrip("/"),
             "odoo_url": str(settings.BACKEND_HOST).rstrip("/"),
+            "grafana_url": str(settings.BACKEND_HOST).rstrip("/") + "/grafana",
         },
     )
