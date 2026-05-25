@@ -40,5 +40,6 @@ async def system_status(
             "base_url": str(request.base_url),
             "google_login_url": "",
             "hw_proxy_url": str(settings.HW_PROXY_URL).rstrip("/"),
+            "odoo_url": str(settings.BACKEND_HOST).rstrip("/"),
         },
     )
