@@ -131,11 +131,12 @@ class PrinterPool:
 
     def _sync_raw_write(self, payload: bytes) -> None:
         """Write raw ESC/POS bytes to the serial port.  Retry once on error."""
+        # Close before every write: USB reconnect brings the printer ONLINE so
+        # buffer commands (image data, cut) are executed rather than queued silently.
+        self._close()
         for attempt in range(2):
             try:
                 h = self._ensure()
-                if not h.has_fast_printer_check():
-                    raise HwPrinterError("Printer not ready (DSR low)")
                 t0 = time.perf_counter()
                 h.printer._raw(payload)
                 dur = time.perf_counter() - t0
@@ -152,12 +153,16 @@ class PrinterPool:
                     raise HwPrinterError(f"[PrinterPool] Write failed: {e}") from e
 
     def _sync_cut(self) -> None:
+        # Close then reopen: USB reconnect handshake brings the printer back ONLINE.
+        # A persistent open connection can leave the printer in OFFLINE state where
+        # buffer commands are queued but never executed.
+        self._close()
         for attempt in range(2):
             try:
                 h = self._ensure()
-                if not h.has_fast_printer_check():
-                    raise HwPrinterError("Printer not ready")
+                h.printer._raw(_CMD_INIT)
                 h.printer.cut(feed=True)
+                h.printer.device.flush()
                 return
             except Exception as e:
                 if attempt == 0:
@@ -166,10 +171,12 @@ class PrinterPool:
                     raise HwPrinterError(f"[PrinterPool] Cut failed: {e}") from e
 
     def _sync_cashdrawer(self) -> None:
+        self._close()
         for attempt in range(2):
             try:
                 h = self._ensure()
                 h.printer._raw(_CMD_CASHDRAWER)
+                h.printer.device.flush()
                 return
             except Exception as e:
                 if attempt == 0:
@@ -183,10 +190,9 @@ class PrinterPool:
         for attempt in range(2):
             try:
                 h = self._ensure()
-                is_online = h.printer.is_online()
                 code = h.printer.paper_status()
                 paper = {2: "ok", 1: "near_end", 0: "no_paper"}.get(code, "unknown")
-                return {"is_online": is_online, "paper_status": paper}
+                return {"is_online": code in (0, 1, 2), "paper_status": paper}
             except Exception as e:
                 if attempt == 0:
                     self._reconnect()
