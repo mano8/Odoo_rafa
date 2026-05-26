@@ -13,3 +13,5 @@ load:
 	$(SUDO) docker load -i postgres_13.21-alpine3.20.tar
 	$(SUDO) docker load -i odoo_18.0.tar
 	$(SUDO) docker load -i python-3.11-fat.tar
+	$(SUDO) docker load -i prometheus_v3.4.0.tar
+	$(SUDO) docker load -i grafana_12.0.1.tar

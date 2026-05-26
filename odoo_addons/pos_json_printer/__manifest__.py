@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'POS JSON Printer',
-    'version': '18.0.0.11.0',
+    'version': '18.0.0.12.0',
     'category': 'Sales/Point of Sale',
     'summary': 'Send structured JSON to hw_proxy instead of a PNG image — 25× smaller payload.',
     'description': """
@@ -13,7 +13,7 @@ at 115 200 baud on a Posiflex PP6800 (or any 80 mm ESC/POS serial printer).
 
 Configuration:
   POS Settings → Printers → Enable "JSON Printer" and set the hw_proxy URL.
-  If the URL is left blank the addon defaults to the same hostname on port 9002.
+  If the URL is left blank the addon defaults to the same hostname on port 9001 (Traefik hw entryPoint).
     """,
     'author': 'Eli Serra',
     'depends': ['point_of_sale'],

@@ -19,7 +19,9 @@ When you need to run the entire **Fiesta POS** stack with **no Internet** (e.g. 
 │   ├── traefik_v3.4.0.tar
 │   ├── postgres_13.21-alpine3.20.tar
 │   ├── odoo_18.0.tar
-│   └── python-3.11-fat.tar
+│   ├── python-3.11-fat.tar
+│   ├── prometheus_v3.4.0.tar
+│   └── grafana_12.0.1.tar
 └── hw_status/
     ├── wheelhouse/             ← prod wheels (in `.gitignore`)
     ├── wheelhouse_dev/         ← dev wheels (in `.gitignore`)
@@ -105,19 +107,25 @@ cd /opt/Odoo_rafa/docker_offline
 docker pull traefik:v3.4.0
 docker pull postgres:13.21-alpine3.20
 docker pull odoo:18.0
+docker pull prom/prometheus:v3.4.0
+docker pull grafana/grafana:12.0.1
 
 docker build -f ../hw_status/FatDockerfile -t python-3.11-fat:latest ../hw_status
 
-docker save traefik:v3.4.0   -o traefik_v3.4.0.tar
-docker save postgres:13.21-alpine3.20 \
-     -o postgres_13.21-alpine3.20.tar
-docker save odoo:18.0         -o odoo_18.0.tar
-docker save python-3.11-fat:latest \
-     -o python-3.11-fat.tar
+docker save traefik:v3.4.0              -o traefik_v3.4.0.tar
+docker save postgres:13.21-alpine3.20   -o postgres_13.21-alpine3.20.tar
+docker save odoo:18.0                   -o odoo_18.0.tar
+docker save python-3.11-fat:latest      -o python-3.11-fat.tar
+docker save prom/prometheus:v3.4.0      -o prometheus_v3.4.0.tar
+docker save grafana/grafana:12.0.1      -o grafana_12.0.1.tar
 
 # On offline host:
 docker load -i traefik_v3.4.0.tar
-... (repeat for others)
+docker load -i postgres_13.21-alpine3.20.tar
+docker load -i odoo_18.0.tar
+docker load -i python-3.11-fat.tar
+docker load -i prometheus_v3.4.0.tar
+docker load -i grafana_12.0.1.tar
 ```
 
 ### Python wheels for `hw_status`

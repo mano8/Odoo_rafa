@@ -47,7 +47,7 @@ _CMD_PRE_PRINT = b"\x1D\x28\x45\x05\x00\x01\x01\x14"
 # ESC @ — initialize printer (resets all modes to power-on defaults)
 # Prepended to every job so printer state from a previous job never bleeds through.
 _CMD_INIT = b"\x1b\x40"
-# 80 mm printer, font A (12 dots/char) → 512 px ÷ 12 ≈ 42 chars per line
+# PP6800 font A: 42 chars/line (tested; pixel width controlled by print_width in supported_devices.py)
 _RECEIPT_LINE_WIDTH = 42
 
 
@@ -111,9 +111,17 @@ class PrinterPool:
         """Convert base64 receipt image to ESC/POS bytes.  No serial access."""
         h = self._ensure()
         img = EscPosHelper.format_base64_to_image(receipt)
+        logger.info(
+            "[PrinterPool] receipt image: %dx%d mode=%s print_width=%s",
+            img.width, img.height, img.mode,
+            h.device.print_width if h.device else None,
+        )
         if h.device and h.device.print_width and img.width != h.device.print_width:
             new_height = int(img.height * h.device.print_width / img.width)
             img = img.resize((h.device.print_width, new_height), Image.LANCZOS)
+            logger.info(
+                "[PrinterPool] resized to: %dx%d", img.width, img.height
+            )
         image_conf = (
             h.device.image_conf.model_dump()
             if h.device and h.device.image_conf
@@ -271,6 +279,14 @@ class PrinterPool:
                 return sz
         return 1
 
+    # ESC t 19 — select CP858 code page (has € at 0xD5, superset of PC437)
+    _CMD_CP858 = b"\x1b\x74\x13"
+
+    @staticmethod
+    def _txt(text: str) -> bytes:
+        """Encode text as CP858 bytes (handles € and other Latin chars)."""
+        return text.encode("cp858", errors="replace")
+
     def _encode_json_receipt(self, data: PrintReceiptJsonRequest) -> bytes:
         """Render the flat ``lines`` array from the DOM scan to ESC/POS bytes.
 
@@ -282,10 +298,15 @@ class PrinterPool:
         The global ``char_size`` is a *maximum*. Each line auto-reduces its
         size level so text is never truncated.
         Dividers always print at level 1 (full 42-char width).
+        Row lines (product/total pairs) are always printed bold.
         """
         d = Dummy()
         W = _RECEIPT_LINE_WIDTH
         sz = max(1, min(3, data.char_size))
+
+        # Switch to CP858 so € encodes correctly (0xD5). _CMD_INIT resets to
+        # PC437, so this must come first inside d.output (prepended after).
+        d._raw(self._CMD_CP858)
 
         for line in data.lines:
             max_line_sz = 1 if line.pin else max(1, min(3, line.s * sz))
@@ -293,7 +314,7 @@ class PrinterPool:
             if line.t == "div":
                 ch = (line.dv or "-")[0]
                 d.set(align="left", bold=False, width=1, height=1)
-                d.text(ch * W + "\n")
+                d._raw(self._txt(ch * W + "\n"))
 
             elif line.t == "text":
                 text = line.v or ""
@@ -307,16 +328,18 @@ class PrinterPool:
                     height=_SZ_H[actual_sz],
                     custom_size=True,
                 )
-                d.text(text[:w] + "\n")
+                d._raw(self._txt(text[:w] + "\n"))
 
             elif line.t == "row":
                 left = line.l or ""
                 right = line.r or ""
                 actual_sz = self._fit_sz(len(left) + len(right) + 1, max_line_sz, W)
                 w = W // _SZ_W[actual_sz]
+                # Row lines (product name/price, totals) are always bold for
+                # readability; the DOM scan bold flag is ignored here.
                 d.set(
                     align="left",
-                    bold=line.b,
+                    bold=True,
                     width=_SZ_W[actual_sz],
                     height=_SZ_H[actual_sz],
                     custom_size=True,
@@ -325,7 +348,7 @@ class PrinterPool:
                 if gap < 1:
                     left = left[: max(0, w - len(right) - 1)]
                     gap = 1
-                d.text(left + " " * gap + right + "\n")
+                d._raw(self._txt(left + " " * gap + right + "\n"))
 
         if data.cut:
             d.cut(feed=True)

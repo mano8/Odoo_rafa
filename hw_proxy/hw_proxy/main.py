@@ -139,14 +139,23 @@ async def metrics_endpoint():
 
 
 # CORSMiddleware runs before ip_and_origin_filter (outermost wrapper).
-# Allow localhost on any port so hw_status and other local clients
-# can reach hw_proxy without adding every port to BACKEND_CORS_ORIGINS.
+# Allow any private-network origin (mirrors TRUSTED_NETWORKS) so that
+# the Odoo POS frontend (e.g. https://192.168.1.146:9000) can reach
+# hw_proxy (https://192.168.1.146:9001) without a CORS preflight failure.
 # ip_and_origin_filter is the real security gate (TRUSTED_NETWORKS check).
-_localhost_regex = r"^https?://localhost(:\d+)?$"
+_trusted_origin_regex = (
+    r"^https?://"
+    r"(localhost"
+    r"|127\.0\.0\.1"
+    r"|192\.168\.\d{1,3}\.\d{1,3}"
+    r"|10\.\d{1,3}\.\d{1,3}\.\d{1,3}"
+    r"|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}"
+    r")(:\d+)?$"
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
-    allow_origin_regex=_localhost_regex,
+    allow_origin_regex=_trusted_origin_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Requested-With"],

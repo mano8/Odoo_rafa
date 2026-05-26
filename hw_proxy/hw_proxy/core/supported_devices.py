@@ -26,16 +26,18 @@ device_list = [
         'port_type': DevicePortType.SERIAL,
         'conf': {
             "devfile": "/dev/ttyACM0",
-            "baudrate": 115200,  # 115200,
+            "baudrate": 115200,
             "bytesize": 8,
             "parity": 'N',
             "stopbits": 1,
             "timeout": 2,
             "dsrdtr": False,
-            "profile": "TM-L90"
+            # TM-T88IV: generic 80mm/203-DPI ESC/POS receipt profile (PP6800 is compatible)
+            "profile": "TM-T88IV"
         },
-        # PP-6800: 80mm paper at 203 DPI; printable width ≈ 512–576 dots — tune if output is clipped or padded
-        'print_width': 512,
+        # PP-6800: 80mm paper, 203 DPI, 72mm printable = 576 dots.
+        # Check hw_proxy INFO logs after first print to confirm Odoo image width and adjust here.
+        'print_width': 576,
         'image_conf': {
             "impl": "bitImageRaster",
             "fragment_height": 256,
