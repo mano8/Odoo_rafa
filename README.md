@@ -16,7 +16,7 @@ This project provides a **local Odoo POS server** with:
 | Component                        | Description                                                                                  |
 | -------------------------------- | -------------------------------------------------------------------------------------------- |
 | 🧱 **Odoo 18.0**                 | Main ERP and POS system.                                                                     |
-| ⚙️ **External hw_proxy**         | Bridge between Odoo POS and a physical ESC/POS printer (running at `192.168.1.146:9002`).    |
+| ⚙️ **External hw_proxy**         | Bridge between Odoo POS and a physical ESC/POS printer (exposed via Traefik at port `9001`). |
 | 📊 **FastAPI hw_status_service** | Local service offering status UI, OpenAPI/Docs, and **test print** features.                 |
 | 🔒 **Traefik v3.4.0**            | Reverse proxy handling HTTPS routing, local certificates, and HTTP/3.                        |
 | 🧩 **POS Indv Receipt Add-on**   | Prints one ticket per unit from the POS receipt screen — ideal for bars, events, and kiosks. |
@@ -57,7 +57,7 @@ All components run locally in Docker containers, except for the optional **`hw_p
 
    * `/` → `fiesta_odoo:8069` (Odoo)
    * `/hw_status` → `hw_status_service:8015`
-   * `/hw_proxy` → external host `192.168.1.146:9002`
+   * `/hw_proxy` → external host `192.168.1.146:9002` (via Traefik TLS termination on port `9001`)
 2. **Odoo POS** communicates securely with `hw_proxy` for direct printing.
 3. **hw_status_service** offers a browser dashboard for printer/system monitoring and test printing.
 4. **PostgreSQL** stores Odoo data; all services run locally under the `odoo_network`.
@@ -251,8 +251,8 @@ You now have a locally secure, fully containerized Odoo 18 environment with Trae
 
 ### 🔌 External hw_proxy
 
-* Runs outside the compose stack (on host at `192.168.1.146:9002`).
-* Accepts HTTPS requests from Odoo POS via Traefik’s `/hw_proxy` router.
+* Runs outside the compose stack on the host (uvicorn at port `9002`).
+* Traefik TLS-terminates on port `9001` and forwards to `9002` — **Odoo POS must call port `9001`**, not `9002` directly.
 * Bridges requests directly to your **ESC/POS printer** (USB, serial, or TCP).
 
 **Example setup (`hw_proxy/config.py`):**
@@ -300,6 +300,49 @@ Enhances Odoo 18 POS with per-unit ticket printing.
 
 ---
 
+## 🖨️ Odoo Add-on: POS JSON Printer (`pos_json_printer`)
+
+Replaces the raster PNG receipt path with a structured **JSON → ESC/POS** pipeline for faster, lighter prints.
+
+### pos_json_printer Features
+
+* Scans the rendered receipt DOM and sends structured line data to `hw_proxy`
+* Prints at ~5 ms encode time vs ~25 ms for raster PNG
+* Correct **euro (€)** and Latin character encoding via CP858
+* Product/price rows always **bold** for readability
+* Automatic size reduction so text is never truncated
+* Falls back to standard Odoo raster print on error
+
+### pos_json_printer Update — Step-by-step
+
+After merging changes to `main`, deploy to the server with these steps **in order**:
+
+```bash
+# 1. Pull the latest code from GitHub
+cd /opt/Odoo_rafa
+sudo git pull origin main
+
+# 2. Copy the updated addon files into the Odoo addons directory
+sudo update_addon.sh
+
+# 3. Restart the Odoo container so it detects the new module version
+sudo docker restart odoo_prod-fiesta_odoo-1
+```
+
+> **Why `docker restart` and not `odoo -u`?**
+> On restart Odoo automatically detects the version change in `__manifest__.py` and upgrades the module. No manual `-u pos_json_printer` command is needed.
+
+### hw_proxy Update
+
+If `hw_proxy` source files also changed:
+
+```bash
+sudo update_hw_proxy.sh
+sudo systemctl restart hw_proxy
+```
+
+---
+
 ## 🧰 Maintenance & Utilities
 
 ### View Logs
@@ -340,7 +383,7 @@ docker exec -t fiesta_db pg_dump -U odoo odoo > backup.sql
 
 | Issue                  | Possible Fix                                                                   |
 | ---------------------- | ------------------------------------------------------------------------------ |
-| **POS not printing**   | Check if `hw_proxy` service at `192.168.1.146:9002` is running and accessible. |
+| **POS not printing**   | Verify `systemctl status hw_proxy`; Traefik must forward port `9001` → `9002`. |
 | **Test print fails**   | Confirm correct printer port and permissions.                                  |
 | **Odoo HTTPS warning** | Trust local CA in your OS.                                                     |
 | **Add-on not visible** | Update apps list and confirm add-on path is mounted.                           |

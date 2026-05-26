@@ -49,7 +49,6 @@ http:
       priority: 100
       service: grafana-service
       middlewares:
-        - grafana-strip
         - grafana-security
         - grafana-retry
       tls: {}
@@ -81,11 +80,6 @@ http:
         sourceRange:
           - "127.0.0.1/32"
           - "::1/128"
-
-    grafana-strip:
-      stripPrefix:
-        prefixes:
-          - "/grafana"
 
     grafana-security:
       headers:
