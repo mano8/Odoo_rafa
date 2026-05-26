@@ -9,7 +9,7 @@ import { patch } from "@web/core/utils/patch";
 function _hwUrl(config) {
     return (
         (config.hw_proxy_json_url || "").replace(/\/$/, "") ||
-        `${window.location.protocol}//${window.location.hostname}:9002`
+        `${window.location.protocol}//${window.location.hostname}:9001`
     );
 }
 
