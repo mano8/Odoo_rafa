@@ -23,6 +23,7 @@ Concurrency model
 import asyncio
 import logging
 import time
+import warnings
 from typing import Optional
 
 from escpos.printer import Dummy
@@ -118,10 +119,9 @@ class PrinterPool:
         )
         # Crop blank rows at the top — Odoo renders the receipt HTML with CSS
         # padding that produces a white band before the header content.
-        img_l = img.convert("L")
-        bbox = ImageOps.invert(img_l).getbbox()
+        bbox = ImageOps.invert(img.convert("L")).getbbox()
         if bbox and bbox[1] > 0:
-            img = img_l.crop((0, bbox[1], img_l.width, img_l.height)).convert("1")
+            img = img.crop((0, bbox[1], img.width, img.height))
             logger.info("[PrinterPool] cropped %d top-whitespace rows", bbox[1])
         if h.device and h.device.print_width and img.width != h.device.print_width:
             new_height = int(img.height * h.device.print_width / img.width)
@@ -130,13 +130,17 @@ class PrinterPool:
                 "[PrinterPool] resized to: %dx%d", img.width, img.height
             )
         image_conf = (
-            h.device.image_conf.model_dump()
+            h.device.image_conf.model_dump(exclude_unset=True)
             if h.device and h.device.image_conf
-            else {"impl": "bitImageRaster", "fragment_height": 256}
+            else {"impl": "bitImageColumn", "center": False}
         )
         image_conf = {**image_conf, "center": False}
         d = Dummy()
-        d.image(img, **image_conf)
+        # Suppress "media.width.pixel not set, center has no effect" — the
+        # Dummy encoder has no profile width; we already force center=False.
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*media\\.width\\.pixel.*")
+            d.image(img, **image_conf)
         d.cut(feed=True)
         return _CMD_INIT + _CMD_PRE_PRINT + d.output
 

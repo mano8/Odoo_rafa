@@ -528,9 +528,9 @@ class EscPosHelper(DeviceHelper):
                 b64string = b64string.split(",", 1)[1]
             raw = base64.b64decode(b64string)
 
-            # 2. Abrir imagen en memoria — convert to 1-bit here so python-escpos
-            #    skips its internal RGB→grayscale→dither pipeline
-            return Image.open(BytesIO(raw)).convert("L").convert("1")
+            # 2. Open image in memory as RGB — python-escpos handles the
+            #    internal dithering pipeline per impl (bitImageColumn uses its own).
+            return Image.open(BytesIO(raw)).convert("RGB")
         except Exception as e:
             raise HwPrinterError(
                 "Error: Unable to convert "
