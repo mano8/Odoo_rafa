@@ -26,7 +26,7 @@ import time
 from typing import Optional
 
 from escpos.printer import Dummy
-from PIL import Image
+from PIL import Image, ImageOps
 
 from hw_proxy.core.exceptions import HwPrinterError
 from hw_proxy.metrics import serial_write_duration_seconds
@@ -116,6 +116,13 @@ class PrinterPool:
             img.width, img.height, img.mode,
             h.device.print_width if h.device else None,
         )
+        # Crop blank rows at the top — Odoo renders the receipt HTML with CSS
+        # padding that produces a white band before the header content.
+        img_l = img.convert("L")
+        bbox = ImageOps.invert(img_l).getbbox()
+        if bbox and bbox[1] > 0:
+            img = img_l.crop((0, bbox[1], img_l.width, img_l.height)).convert("1")
+            logger.info("[PrinterPool] cropped %d top-whitespace rows", bbox[1])
         if h.device and h.device.print_width and img.width != h.device.print_width:
             new_height = int(img.height * h.device.print_width / img.width)
             img = img.resize((h.device.print_width, new_height), Image.LANCZOS)
@@ -147,6 +154,13 @@ class PrinterPool:
                 h = self._ensure()
                 t0 = time.perf_counter()
                 h.printer._raw(payload)
+                # tcdrain: block until every byte is in the USB device buffer.
+                # Without this the lock is released while ~56 KB is still in
+                # the OS transmit queue; a subsequent cut or next-ticket write
+                # then calls _close() / sends _CMD_INIT while the printer is
+                # still processing the previous job, causing truncation or
+                # garbled mixed output on sequential rasterised prints.
+                h.printer.device.flush()
                 dur = time.perf_counter() - t0
                 serial_write_duration_seconds.observe(dur)
                 logger.info(
