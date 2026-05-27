@@ -39,8 +39,7 @@ device_list = [
         # Check hw_proxy INFO logs after first print to confirm Odoo image width and adjust here.
         'print_width': 576,
         'image_conf': {
-            "impl": "bitImageRaster",
-            "fragment_height": 256,
+            "impl": "bitImageColumn",
             "center": False,
         }
     },
