@@ -134,7 +134,7 @@ class PrinterPool:
         image_conf = (
             h.device.image_conf.model_dump(exclude_unset=True)
             if h.device and h.device.image_conf
-            else {"impl": "bitImageColumn", "center": False}
+            else {"impl": "bitImageRaster", "center": False}
         )
         image_conf = {**image_conf, "center": False}
         # Threshold to 1-bit: avoids Floyd-Steinberg dithering artifacts on
