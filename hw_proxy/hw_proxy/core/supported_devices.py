@@ -37,17 +37,19 @@ device_list = [
             # TM-T88IV: generic 80mm/203-DPI ESC/POS receipt profile (PP6800 is compatible)
             "profile": "TM-T88IV",
         },
-        # PP-6800: 80mm paper, 203 DPI, 72mm printable = 576 dots.
-        # Check hw_proxy INFO logs after first print to confirm Odoo image width and adjust here.
-        "print_width": 576,
+        # PP-6800: 80mm paper, 203 DPI. Physical printable width observed as
+        # ~512 dots (64mm); 576 clips the right ~8mm of content.
+        "print_width": 512,
         "image_conf": {
-            # bitImageColumn (ESC *) is used instead of bitImageRaster (GS v 0)
-            # because the PP6800 firmware silently drops GS v 0 raster data past
-            # ~2 fragments (~480 rows) regardless of fragment_height tuning.
-            # ESC * is the older column-based method and is reliably supported on
-            # all Posiflex/ESC-POS firmware generations.
+            # bitImageColumn (ESC *) instead of bitImageRaster (GS v 0):
+            # PP6800 firmware silently drops GS v 0 raster data past ~2
+            # fragments (~480 rows) regardless of fragment_height tuning.
             "impl": "bitImageColumn",
             "center": False,
+            # High-density mode (m=33, 24-pin) causes horizontal blank lines
+            # on the PP6800 thermal head — single density (m=0) is safer.
+            "high_density_vertical": False,
+            "high_density_horizontal": False,
         },
     },
 ]

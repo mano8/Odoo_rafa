@@ -129,7 +129,7 @@ class PrinterPool:
             logger.info("[PrinterPool] cropped %d top-whitespace rows", bbox[1])
         if h.device and h.device.print_width and img.width != h.device.print_width:
             new_height = int(img.height * h.device.print_width / img.width)
-            img = img.resize((h.device.print_width, new_height), Image.LANCZOS)
+            img = img.resize((h.device.print_width, new_height), Image.BILINEAR)
             logger.info("[PrinterPool] resized to: %dx%d", img.width, img.height)
         image_conf = (
             h.device.image_conf.model_dump(exclude_unset=True)
@@ -139,7 +139,7 @@ class PrinterPool:
         image_conf = {**image_conf, "center": False}
         # Threshold to 1-bit: avoids Floyd-Steinberg dithering artifacts on
         # JPEG receipts — text is high-contrast so a clean threshold is better.
-        img = img.convert("L").point(lambda x: 255 if x > 200 else 0).convert("1")
+        img = img.convert("L").point(lambda x: 255 if x > 160 else 0).convert("1")
         logger.info(
             "[PrinterPool] encoding 1-bit %dx%d  impl=%s",
             img.width,
@@ -175,13 +175,10 @@ class PrinterPool:
                 t0 = time.perf_counter()
                 h.printer._raw(payload)
                 # tcdrain: OS kernel buffer → USB device internal FIFO.
+                # tcdrain on Linux USB-CDC/ACM blocks until the USB device
+                # has serialised all bytes to the printer UART, so flush()
+                # already provides the full drain wait.  No extra sleep needed.
                 h.printer.device.flush()
-                # The USB-CDC/ACM device still has to drain its FIFO to the
-                # printer UART at 115 200 baud (~4.86 s for 56 KB).  Sleep
-                # while holding the lock so the next job never sends bytes
-                # while the UART is still transmitting the current one.
-                baud = getattr(h.printer.device, "baudrate", 115_200)
-                time.sleep(len(payload) * 10 / baud)
                 dur = time.perf_counter() - t0
                 serial_write_duration_seconds.observe(dur)
                 logger.info(
