@@ -47,7 +47,6 @@ _SZ_W = (0, 1, 1, 2)
 _SZ_H = (0, 1, 2, 2)
 
 _CMD_CASHDRAWER = b"\x1b\x70\x00\x19\xfa"
-_CMD_PRE_PRINT = b"\x1d\x28\x45\x05\x00\x01\x01\x14"
 # ESC @ — initialize printer (resets all modes to power-on defaults)
 # Prepended to every job so printer state from a previous job never bleeds through.
 _CMD_INIT = b"\x1b\x40"
@@ -165,13 +164,9 @@ class PrinterPool:
                 d.image(band, **enc_conf)
         d.cut(feed=True)
         # _CMD_INIT (ESC @) resets the printer's ESC/POS command parser to a
-        # known state.  _close()/_open() only resets the host serial port —
-        # the PP6800's internal parser keeps running and may be mid-command
-        # from a previous job.  Without the reset, the first bytes of the
-        # payload are silently consumed as parameters for the stale command,
-        # corrupting the GS v 0 header.  _CMD_PRE_PRINT re-applies quality
-        # settings after the reset, mirroring the JSON receipt path.
-        return _CMD_INIT + _CMD_PRE_PRINT + d.output
+        # known state before the image bands so no stale mid-command state
+        # from a previous job corrupts the GS v 0 header.
+        return _CMD_INIT + d.output
 
     # ------------------------------------------------------------------ #
     # Write (sync, serial I/O) — slow ~payload_bytes × 10 / baud         #
@@ -404,7 +399,7 @@ class PrinterPool:
         if data.cut:
             d.cut(feed=True)
 
-        return _CMD_INIT + _CMD_PRE_PRINT + d.output
+        return _CMD_INIT + d.output
 
     async def print_receipt_json(self, data: PrintReceiptJsonRequest) -> bool:
         """Encode structured receipt (~5 ms) then fire-and-forget serial write."""

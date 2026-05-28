@@ -28,7 +28,6 @@ from escpos.printer import Dummy
 W = 42  # characters per line (PP6800 font A)
 
 CMD_INIT = b"\x1b\x40"
-CMD_PRE_PRINT = b"\x1d\x28\x45\x05\x00\x01\x01\x14"
 CMD_CP858 = b"\x1b\x74\x13"
 
 
@@ -39,7 +38,7 @@ def make_payload(lines: list[str]) -> bytes:
         d.set(align="center", bold=False, width=1, height=1)
         d._raw((line[:W] + "\n").encode("cp858", errors="replace"))
     d.cut(feed=True)
-    return CMD_INIT + CMD_PRE_PRINT + d.output
+    return CMD_INIT + d.output
 
 
 def send(ser: serial.Serial, payload: bytes, label: str, baud: int) -> None:
