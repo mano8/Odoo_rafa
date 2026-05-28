@@ -37,19 +37,22 @@ device_list = [
             # TM-T88IV: generic 80mm/203-DPI ESC/POS receipt profile (PP6800 is compatible)
             "profile": "TM-T88IV",
         },
-        # PP-6800: 80mm paper, 203 DPI. ESC * (bitImageColumn) firmware assumes
-        # 576-dot logical width; using 512 causes oversized chars and clipping.
-        "print_width": 576,
+        # PP-6800: 80mm paper, 203 DPI. Odoo renders receipts at 512px wide.
+        # Resizing up to 576 increases payload from ~84 KB to ~107 KB; the
+        # PP6800 firmware silently drops data past its ~90 KB job buffer,
+        # truncating the bottom of the receipt.  Keep at 512 (no resize needed).
+        "print_width": 512,
         "image_conf": {
             # bitImageColumn (ESC *) instead of bitImageRaster (GS v 0):
             # PP6800 firmware silently drops GS v 0 raster data past ~2
             # fragments (~480 rows) regardless of fragment_height tuning.
             "impl": "bitImageColumn",
             "center": False,
-            # m=32 (24-dot single density): high_density_vertical=True ensures
-            # correct 24-dot line advance per ESC * strip on a 203 DPI head.
-            # m=0 (8-dot) uses wrong line spacing → strips print with huge gaps
-            # → "zoomed characters, only top portion visible" symptom.
+            # m=32 (high_density_vertical=True, high_density_horizontal=False):
+            # 24-dot strips with correct paper advance per strip on a 203 DPI
+            # head.  m=0 (high_density_vertical=False) uses wrong line spacing
+            # → each 8-dot strip followed by a default ~34-dot line feed →
+            # "zoomed characters, only top portion visible" symptom.
             # high_density_horizontal=False avoids double-column density that
             # saturates the PP6800 thermal head → horizontal blank-line artifacts.
             "high_density_vertical": True,
