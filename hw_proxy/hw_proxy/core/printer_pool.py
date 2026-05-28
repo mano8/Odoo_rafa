@@ -164,9 +164,14 @@ class PrinterPool:
                 band = img.crop((0, y, img.width, min(y + frag_h, img.height)))
                 d.image(band, **enc_conf)
         d.cut(feed=True)
-        # No _CMD_INIT: USB reconnect in _sync_raw_write resets printer state;
-        # ESC @ would override the density/speed settings that _CMD_PRE_PRINT sets.
-        return _CMD_PRE_PRINT + d.output
+        # _CMD_INIT (ESC @) resets the printer's ESC/POS command parser to a
+        # known state.  _close()/_open() only resets the host serial port —
+        # the PP6800's internal parser keeps running and may be mid-command
+        # from a previous job.  Without the reset, the first bytes of the
+        # payload are silently consumed as parameters for the stale command,
+        # corrupting the GS v 0 header.  _CMD_PRE_PRINT re-applies quality
+        # settings after the reset, mirroring the JSON receipt path.
+        return _CMD_INIT + _CMD_PRE_PRINT + d.output
 
     # ------------------------------------------------------------------ #
     # Write (sync, serial I/O) — slow ~payload_bytes × 10 / baud         #
