@@ -14,8 +14,10 @@ Concurrency model
 ─────────────────
 • _encode_receipt   — runs in asyncio.to_thread (pure Pillow/ESC-POS, no I/O)
 • _background_write — asyncio.Task; acquires _async_lock, then runs the
-                      actual serial write in a thread.  Only one write
-                      task can hold the lock at a time.
+                      actual serial write in a thread.  Holds the lock until
+                      the USB-CDC/ACM FIFO has fully drained to the printer
+                      UART (~4.86 s for 56 KB at 115 200 baud) so that the
+                      next job's _close() never interrupts an ongoing transfer.
 • get_full_status   — if the lock is currently held (write in progress)
                       returns the cached status instantly; otherwise
                       acquires the lock and queries the printer.
@@ -135,6 +137,9 @@ class PrinterPool:
             else {"impl": "bitImageColumn", "center": False}
         )
         image_conf = {**image_conf, "center": False}
+        # Threshold to 1-bit: avoids Floyd-Steinberg dithering artifacts on
+        # JPEG receipts — text is high-contrast so a clean threshold is better.
+        img = img.convert("L").point(lambda x: 255 if x > 200 else 0).convert("1")
         d = Dummy()
         # Suppress "media.width.pixel not set, center has no effect" — the
         # Dummy encoder has no profile width; we already force center=False.
@@ -142,7 +147,9 @@ class PrinterPool:
             warnings.filterwarnings("ignore", message=".*media\\.width\\.pixel.*")
             d.image(img, **image_conf)
         d.cut(feed=True)
-        return _CMD_INIT + _CMD_PRE_PRINT + d.output
+        # No _CMD_INIT: USB reconnect in _sync_raw_write resets printer state;
+        # ESC @ would override the density/speed settings that _CMD_PRE_PRINT sets.
+        return _CMD_PRE_PRINT + d.output
 
     # ------------------------------------------------------------------ #
     # Write (sync, serial I/O) — slow ~payload_bytes × 10 / baud         #
@@ -158,13 +165,16 @@ class PrinterPool:
                 h = self._ensure()
                 t0 = time.perf_counter()
                 h.printer._raw(payload)
-                # tcdrain: block until every byte is in the USB device buffer.
-                # Without this the lock is released while ~56 KB is still in
-                # the OS transmit queue; a subsequent cut or next-ticket write
-                # then calls _close() / sends _CMD_INIT while the printer is
-                # still processing the previous job, causing truncation or
-                # garbled mixed output on sequential rasterised prints.
+                # tcdrain: OS kernel buffer → USB device internal FIFO.
                 h.printer.device.flush()
+                # The USB-CDC/ACM device still has to drain its FIFO to the
+                # printer UART at 115 200 baud (~4.86 s for 56 KB). If we
+                # release the lock now, the next job's _close() disconnects the
+                # USB device mid-transmission, corrupting sequential prints.
+                # Sleep here (while holding the lock) so _close() only fires
+                # after the UART has physically delivered all bytes.
+                baud = getattr(h.printer.device, "baudrate", 115_200)
+                time.sleep(len(payload) * 10 / baud)
                 dur = time.perf_counter() - t0
                 serial_write_duration_seconds.observe(dur)
                 logger.info(
