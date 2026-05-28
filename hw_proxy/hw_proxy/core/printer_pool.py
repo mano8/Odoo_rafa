@@ -179,9 +179,11 @@ class PrinterPool:
 
     def _sync_raw_write(self, payload: bytes) -> None:
         """Write raw ESC/POS bytes to the serial port.  Retry once on error."""
-        # Close before every write: USB reconnect brings the printer ONLINE so
-        # buffer commands (image data, cut) are executed rather than queued silently.
-        self._close()
+        # Do NOT close/reopen before every write. The unconditional reconnect
+        # caused the PP6800 firmware to flush its buffer and advance paper on
+        # every USB disconnect, printing the tail of the previous job before
+        # the new one started.  _CMD_INIT in the payload resets the parser
+        # state without triggering a USB disconnect side-effect.
         for attempt in range(2):
             try:
                 h = self._ensure()
@@ -190,11 +192,9 @@ class PrinterPool:
                 # tcdrain: OS kernel buffer → USB device internal FIFO.
                 h.printer.device.flush()
                 # The USB-CDC/ACM device still has to drain its FIFO to the
-                # printer UART at 115 200 baud (~4.86 s for 56 KB). If we
-                # release the lock now, the next job's _close() disconnects the
-                # USB device mid-transmission, corrupting sequential prints.
-                # Sleep here (while holding the lock) so _close() only fires
-                # after the UART has physically delivered all bytes.
+                # printer UART at 115 200 baud (~4.86 s for 56 KB).  Sleep
+                # while holding the lock so the next job never sends bytes
+                # while the UART is still transmitting the current one.
                 baud = getattr(h.printer.device, "baudrate", 115_200)
                 time.sleep(len(payload) * 10 / baud)
                 dur = time.perf_counter() - t0
