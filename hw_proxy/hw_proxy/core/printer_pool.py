@@ -150,10 +150,16 @@ class PrinterPool:
             warnings.filterwarnings("ignore", message=".*media\\.width\\.pixel.*")
             d.image(img, **image_conf)
         d.cut(feed=True)
+        output = d.output
+        if image_conf.get("impl") == "bitImageColumn":
+            # python-escpos hardcodes ESC 3 16 (n=16 → 16/180"=2.26mm) between strips.
+            # 24-dot strips at 203 DPI need 24×(1/203)" = 3.0mm ≈ n=21 (21/180"=2.97mm).
+            # Without this the strip boundary falls at text character midpoint → white gap.
+            output = output.replace(b"\x1b\x33\x10", b"\x1b\x33\x15")
         # _CMD_INIT (ESC @) resets the printer's ESC/POS command parser to a
         # known state before the image data so no stale mid-command state
         # from a previous job corrupts the image stream.
-        return _CMD_INIT + d.output
+        return _CMD_INIT + output
 
     # ------------------------------------------------------------------ #
     # Write (sync, serial I/O) — slow ~payload_bytes × 10 / baud         #
