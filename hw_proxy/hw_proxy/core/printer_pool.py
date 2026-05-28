@@ -157,9 +157,15 @@ class PrinterPool:
         d.cut(feed=True)
         output = d.output
         if image_conf.get("impl") == "bitImageColumn":
-            # python-escpos hardcodes ESC 3 n=16 (16/180"=2.26mm).
-            # n=21 (21/180"=2.97mm) reduces the horizontal gap between strips.
-            output = output.replace(b"\x1b\x33\x10", b"\x1b\x33\x15")
+            patched = output.replace(b"\x1b\x33\x10", b"\x1b\x33\x15")
+            n_before = output.count(b"\x1b\x33\x10")
+            n_after = patched.count(b"\x1b\x33\x15")
+            logger.info(
+                "[PrinterPool] ESC3 patch: replaced=%d  n_before_left=%d  n_after=%d  "
+                "output_len=%d",
+                n_before, output.count(b"\x1b\x33\x10"), n_after, len(patched),
+            )
+            output = patched
         # _CMD_INIT (ESC @) resets the printer's ESC/POS command parser to a
         # known state before the image data so no stale mid-command state
         # from a previous job corrupts the image stream.
