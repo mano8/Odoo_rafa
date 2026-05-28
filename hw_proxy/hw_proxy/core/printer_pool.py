@@ -127,19 +127,22 @@ class PrinterPool:
         if bbox and bbox[1] > 0:
             img = img.crop((0, bbox[1], img.width, img.height))
             logger.info("[PrinterPool] cropped %d top-whitespace rows", bbox[1])
+        # Convert to 1-bit BEFORE resize: threshold on original-resolution pixels
+        # avoids LANCZOS/BILINEAR gray fringe artifacts that corrupt ESC * bitstream.
+        # Applying the threshold first preserves clean character edges at source DPI.
+        img = img.convert("L").point(lambda x: 255 if x > 180 else 0).convert("1")
+        logger.info("[PrinterPool] 1-bit threshold: %dx%d", img.width, img.height)
         if h.device and h.device.print_width and img.width != h.device.print_width:
             new_height = int(img.height * h.device.print_width / img.width)
-            img = img.resize((h.device.print_width, new_height), Image.LANCZOS)
+            # NEAREST on a 1-bit image: binary→binary, no gray fringe introduced.
+            img = img.resize((h.device.print_width, new_height), Image.NEAREST)
             logger.info("[PrinterPool] resized to: %dx%d", img.width, img.height)
         image_conf = (
             h.device.image_conf.model_dump(exclude_unset=True)
             if h.device and h.device.image_conf
-            else {"impl": "bitImageRaster", "center": False}
+            else {"impl": "bitImageColumn", "center": False}
         )
         image_conf = {**image_conf, "center": False}
-        # Threshold to 1-bit: avoids Floyd-Steinberg dithering artifacts on
-        # JPEG receipts — text is high-contrast so a clean threshold is better.
-        img = img.convert("L").point(lambda x: 255 if x > 180 else 0).convert("1")
         logger.info(
             "[PrinterPool] encoding 1-bit %dx%d  impl=%s",
             img.width,
