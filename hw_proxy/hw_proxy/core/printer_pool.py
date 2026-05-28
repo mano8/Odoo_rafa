@@ -121,6 +121,11 @@ class PrinterPool:
             img.mode,
             h.device.print_width if h.device else None,
         )
+        # DEBUG: save source image to inspect horizontal line artifacts
+        try:
+            img.save("/tmp/receipt_debug.png")
+        except Exception:
+            pass
         # Crop blank rows at the top — Odoo renders the receipt HTML with CSS
         # padding that produces a white band before the header content.
         bbox = ImageOps.invert(img.convert("L")).getbbox()
