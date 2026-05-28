@@ -40,6 +40,10 @@ device_list = [
         'print_width': 576,
         'image_conf': {
             "impl": "bitImageRaster",
+            # Keep fragment_height ≤ 255 so the GS v 0 yH byte is always 0.
+            # PP6800 ignores yH and reads only yL rows — tall images (yH > 0)
+            # cause the printer to re-enter text mode mid-image (bad chars).
+            "fragment_height": 64,
             "center": False,
         }
     },
