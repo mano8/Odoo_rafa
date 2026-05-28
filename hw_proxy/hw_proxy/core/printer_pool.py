@@ -110,6 +110,52 @@ class PrinterPool:
     # Encode (sync, no serial I/O) — fast ~25 ms                         #
     # ------------------------------------------------------------------ #
 
+    @staticmethod
+    def _encode_bitimage_column(img: Image.Image, n_line_feed: int = 24) -> bytes:
+        """Encode a PIL image as ESC * bitImageColumn commands.
+
+        Bypasses python-escpos's to_column_format() which uses PIL's EXTENT
+        transform on a mode-'1' image — that transform misreads bit-packed row
+        padding for non-8-aligned widths, producing vertical white stripe
+        artifacts at every 8-column byte boundary.
+
+        This implementation uses Image.TRANSPOSE (a clean pixel swap, no EXTENT)
+        and a hard threshold (no Floyd-Steinberg dithering) for clean output.
+        """
+        W, H = img.width, img.height
+        line_height = 24
+        # m=33: bit5=high_density_vertical (24-dot strips), bit0=high_density_horizontal
+        density_byte = 33
+
+        ESC = b"\x1b"
+        strip_header = ESC + b"*" + bytes([density_byte, W & 0xFF, (W >> 8) & 0xFF])
+        parts: list[bytes] = [ESC + b"\x33" + bytes([n_line_feed])]  # ESC 3 n
+
+        gray = img.convert("L")
+
+        for y_start in range(0, H, line_height):
+            y_end = min(y_start + line_height, H)
+            strip = gray.crop((0, y_start, W, y_end))
+
+            if strip.height < line_height:
+                padded = Image.new("L", (W, line_height), 255)
+                padded.paste(strip, (0, 0))
+                strip = padded
+
+            # Hard threshold without dithering: dark pixel (<128) → fire dot (bit=1).
+            # point() maps dark→255, light→0; convert("1") then maps 255→True(bit=1).
+            strip_bin = strip.point(lambda p: 255 if p < 128 else 0).convert("1")
+
+            # TRANSPOSE: (W, 24) → (24, W).
+            # After transpose, row j = column j's 24 vertical dots (dot 0..23).
+            # tobytes() packs MSB-first per row: byte 0=dots 0-7, byte 1=8-15, byte 2=16-23.
+            # W rows × 3 bytes = correct ESC * column data with no EXTENT artifacts.
+            strip_col = strip_bin.transpose(Image.TRANSPOSE)
+            parts.append(strip_header + strip_col.tobytes() + b"\n")
+
+        parts.append(ESC + b"\x32")  # ESC 2: restore default line spacing
+        return b"".join(parts)
+
     def _encode_receipt(self, receipt: str) -> bytes:
         """Convert base64 receipt image to ESC/POS bytes.  No serial access."""
         h = self._ensure()
@@ -144,22 +190,20 @@ class PrinterPool:
             image_conf.get("impl"),
         )
         d = Dummy()
-        # Suppress "media.width.pixel not set, center has no effect" — the
-        # Dummy encoder has no profile width; we already force center=False.
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message=".*media\\.width\\.pixel.*")
-            d.image(img, **image_conf)
-        d.cut(feed=True)
-        output = d.output
         if image_conf.get("impl") == "bitImageColumn":
-            # python-escpos hardcodes ESC 3 16 (n=16 → 16/180"=2.26mm) between strips.
-            # 24-dot strips at 203 DPI need 24×(1/203)" = 3.0mm ≈ n=21 (21/180"=2.97mm).
-            # Without this the strip boundary falls at text character midpoint → white gap.
-            output = output.replace(b"\x1b\x33\x10", b"\x1b\x33\x15")
+            # Use our encoder to avoid PIL "1" mode EXTENT-transform bit artifacts.
+            d._raw(self._encode_bitimage_column(img))
+        else:
+            # Suppress "media.width.pixel not set, center has no effect" — the
+            # Dummy encoder has no profile width; we already force center=False.
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*media\\.width\\.pixel.*")
+                d.image(img, **image_conf)
+        d.cut(feed=True)
         # _CMD_INIT (ESC @) resets the printer's ESC/POS command parser to a
         # known state before the image data so no stale mid-command state
         # from a previous job corrupts the image stream.
-        return _CMD_INIT + output
+        return _CMD_INIT + d.output
 
     # ------------------------------------------------------------------ #
     # Write (sync, serial I/O) — slow ~payload_bytes × 10 / baud         #
