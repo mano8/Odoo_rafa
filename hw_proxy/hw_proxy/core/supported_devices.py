@@ -48,15 +48,13 @@ device_list = [
             # fragments (~480 rows) regardless of fragment_height tuning.
             "impl": "bitImageColumn",
             "center": False,
-            # m=32 (high_density_vertical=True, high_density_horizontal=False):
-            # 24-dot strips with correct paper advance per strip on a 203 DPI
-            # head.  m=0 (high_density_vertical=False) uses wrong line spacing
-            # → each 8-dot strip followed by a default ~34-dot line feed →
-            # "zoomed characters, only top portion visible" symptom.
-            # high_density_horizontal=False avoids double-column density that
-            # saturates the PP6800 thermal head → horizontal blank-line artifacts.
+            # m=33 (both high_density=True): matches python-escpos default and
+            # the original working state.  high_density_horizontal=False (m=32)
+            # doubles the physical column width on PP6800 → image prints at
+            # 2× paper width → "bigger image in smaller support, malformed".
+            # high_density_horizontal=True restores native 203 DPI column pitch.
             "high_density_vertical": True,
-            "high_density_horizontal": False,
+            "high_density_horizontal": True,
         },
     },
 ]
