@@ -129,7 +129,7 @@ class PrinterPool:
             logger.info("[PrinterPool] cropped %d top-whitespace rows", bbox[1])
         if h.device and h.device.print_width and img.width != h.device.print_width:
             new_height = int(img.height * h.device.print_width / img.width)
-            img = img.resize((h.device.print_width, new_height), Image.BILINEAR)
+            img = img.resize((h.device.print_width, new_height), Image.LANCZOS)
             logger.info("[PrinterPool] resized to: %dx%d", img.width, img.height)
         image_conf = (
             h.device.image_conf.model_dump(exclude_unset=True)
@@ -139,13 +139,24 @@ class PrinterPool:
         image_conf = {**image_conf, "center": False}
         # Threshold to 1-bit: avoids Floyd-Steinberg dithering artifacts on
         # JPEG receipts — text is high-contrast so a clean threshold is better.
-        img = img.convert("L").point(lambda x: 255 if x > 160 else 0).convert("1")
+        img = img.convert("L").point(lambda x: 255 if x > 180 else 0).convert("1")
         logger.info(
             "[PrinterPool] encoding 1-bit %dx%d  impl=%s",
             img.width,
             img.height,
             image_conf.get("impl"),
         )
+        # ESC * byte-packs columns in groups of 8; a width not divisible by 8
+        # produces a partial last byte that appears as vertical ticks on the
+        # right edge of every printed line.
+        if img.width % 8:
+            padded_w = ((img.width + 7) // 8) * 8
+            padded = Image.new("1", (padded_w, img.height), 255)
+            padded.paste(img, (0, 0))
+            img = padded
+            logger.info(
+                "[PrinterPool] padded width to %d for ESC * alignment", padded_w
+            )
         d = Dummy()
         # Suppress "media.width.pixel not set, center has no effect" — the
         # Dummy encoder has no profile width; we already force center=False.

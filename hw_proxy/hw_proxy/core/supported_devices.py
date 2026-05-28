@@ -37,9 +37,9 @@ device_list = [
             # TM-T88IV: generic 80mm/203-DPI ESC/POS receipt profile (PP6800 is compatible)
             "profile": "TM-T88IV",
         },
-        # PP-6800: 80mm paper, 203 DPI. Physical printable width observed as
-        # ~512 dots (64mm); 576 clips the right ~8mm of content.
-        "print_width": 512,
+        # PP-6800: 80mm paper, 203 DPI. ESC * (bitImageColumn) firmware assumes
+        # 576-dot logical width; using 512 causes oversized chars and clipping.
+        "print_width": 576,
         "image_conf": {
             # bitImageColumn (ESC *) instead of bitImageRaster (GS v 0):
             # PP6800 firmware silently drops GS v 0 raster data past ~2
