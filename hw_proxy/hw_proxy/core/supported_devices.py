@@ -40,10 +40,15 @@ device_list = [
         'print_width': 576,
         'image_conf': {
             "impl": "bitImageRaster",
-            # Keep fragment_height ≤ 255 so the GS v 0 yH byte is always 0.
-            # PP6800 ignores yH and reads only yL rows — tall images (yH > 0)
-            # cause the printer to re-enter text mode mid-image (bad chars).
-            "fragment_height": 64,
+            # fragment_height MUST stay ≤ 255: PP6800 ignores the yH byte of
+            # GS v 0, so any single raster band taller than 255 rows causes the
+            # printer to stop reading image data early and mis-parse remaining
+            # bytes as ESC/POS text commands (bad chars).
+            # 240 is chosen so typical individual tickets (≤240 rows) are sent
+            # as a single GS v 0 command (no inter-band artifacts), while taller
+            # global receipts are split into 4–6 bands — few enough that the
+            # printer processes them cleanly in sequence.
+            "fragment_height": 240,
             "center": False,
         }
     },

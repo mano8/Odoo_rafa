@@ -140,6 +140,12 @@ class PrinterPool:
         # Threshold to 1-bit: avoids Floyd-Steinberg dithering artifacts on
         # JPEG receipts — text is high-contrast so a clean threshold is better.
         img = img.convert("L").point(lambda x: 255 if x > 200 else 0).convert("1")
+        frag_h = image_conf.get("fragment_height", 256)
+        n_frags = max(1, (img.height + frag_h - 1) // frag_h)
+        logger.info(
+            "[PrinterPool] encoding 1-bit %dx%d  fragment_height=%d  fragments=%d",
+            img.width, img.height, frag_h, n_frags,
+        )
         d = Dummy()
         # Suppress "media.width.pixel not set, center has no effect" — the
         # Dummy encoder has no profile width; we already force center=False.
