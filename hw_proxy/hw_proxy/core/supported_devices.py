@@ -46,9 +46,13 @@ device_list = [
             # fragments (~480 rows) regardless of fragment_height tuning.
             "impl": "bitImageColumn",
             "center": False,
-            # High-density mode (m=33, 24-pin) causes horizontal blank lines
-            # on the PP6800 thermal head — single density (m=0) is safer.
-            "high_density_vertical": False,
+            # m=32 (24-dot single density): high_density_vertical=True ensures
+            # correct 24-dot line advance per ESC * strip on a 203 DPI head.
+            # m=0 (8-dot) uses wrong line spacing → strips print with huge gaps
+            # → "zoomed characters, only top portion visible" symptom.
+            # high_density_horizontal=False avoids double-column density that
+            # saturates the PP6800 thermal head → horizontal blank-line artifacts.
+            "high_density_vertical": True,
             "high_density_horizontal": False,
         },
     },
