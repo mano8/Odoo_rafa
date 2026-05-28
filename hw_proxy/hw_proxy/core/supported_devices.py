@@ -5,12 +5,14 @@ from enum import Enum
 
 class DeviceType(Enum):
     """Printer Device type"""
+
     PRINTER = "printer"
     CASH_DRAWER = "cash_drawer"
 
 
 class DevicePortType(Enum):
     """Printer Device type"""
+
     USB = "usb"
     NETWORK = "network"
     SERIAL = "serial"
@@ -18,38 +20,34 @@ class DevicePortType(Enum):
 
 device_list = [
     {
-        'vendor': "0x0d3a",
-        'product': "0x0368",
-        'name': 'Posiflex PP6800',
-        'key': 'PP6800',
-        'type': DeviceType.PRINTER,
-        'port_type': DevicePortType.SERIAL,
-        'conf': {
+        "vendor": "0x0d3a",
+        "product": "0x0368",
+        "name": "Posiflex PP6800",
+        "key": "PP6800",
+        "type": DeviceType.PRINTER,
+        "port_type": DevicePortType.SERIAL,
+        "conf": {
             "devfile": "/dev/ttyACM0",
             "baudrate": 115200,
             "bytesize": 8,
-            "parity": 'N',
+            "parity": "N",
             "stopbits": 1,
             "timeout": 2,
             "dsrdtr": False,
             # TM-T88IV: generic 80mm/203-DPI ESC/POS receipt profile (PP6800 is compatible)
-            "profile": "TM-T88IV"
+            "profile": "TM-T88IV",
         },
         # PP-6800: 80mm paper, 203 DPI, 72mm printable = 576 dots.
         # Check hw_proxy INFO logs after first print to confirm Odoo image width and adjust here.
-        'print_width': 576,
-        'image_conf': {
-            "impl": "bitImageRaster",
-            # fragment_height MUST stay ≤ 255: PP6800 ignores the yH byte of
-            # GS v 0, so any single raster band taller than 255 rows causes the
-            # printer to stop reading image data early and mis-parse remaining
-            # bytes as ESC/POS text commands (bad chars).
-            # 240 is chosen so typical individual tickets (≤240 rows) are sent
-            # as a single GS v 0 command (no inter-band artifacts), while taller
-            # global receipts are split into 4–6 bands — few enough that the
-            # printer processes them cleanly in sequence.
-            "fragment_height": 240,
+        "print_width": 576,
+        "image_conf": {
+            # bitImageColumn (ESC *) is used instead of bitImageRaster (GS v 0)
+            # because the PP6800 firmware silently drops GS v 0 raster data past
+            # ~2 fragments (~480 rows) regardless of fragment_height tuning.
+            # ESC * is the older column-based method and is reliably supported on
+            # all Posiflex/ESC-POS firmware generations.
+            "impl": "bitImageColumn",
             "center": False,
-        }
+        },
     },
 ]

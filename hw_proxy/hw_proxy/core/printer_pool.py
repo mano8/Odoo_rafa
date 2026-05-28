@@ -140,32 +140,22 @@ class PrinterPool:
         # Threshold to 1-bit: avoids Floyd-Steinberg dithering artifacts on
         # JPEG receipts — text is high-contrast so a clean threshold is better.
         img = img.convert("L").point(lambda x: 255 if x > 200 else 0).convert("1")
-        # Manually fragment into ≤255-row bands so GS v 0 yH is always 0.
-        # PP6800 ignores yH; any band taller than 255 rows causes bad chars.
-        # We crop here and pass fragment_height=32000 to image() so python-escpos
-        # never calls its own split() — that avoids any library ordering issues.
-        frag_h = image_conf.get("fragment_height", 240)
-        enc_conf = {**image_conf, "fragment_height": 32000}
-        n_frags = max(1, (img.height + frag_h - 1) // frag_h)
         logger.info(
-            "[PrinterPool] encoding 1-bit %dx%d  frag_h=%d  n_frags=%d",
+            "[PrinterPool] encoding 1-bit %dx%d  impl=%s",
             img.width,
             img.height,
-            frag_h,
-            n_frags,
+            image_conf.get("impl"),
         )
         d = Dummy()
         # Suppress "media.width.pixel not set, center has no effect" — the
         # Dummy encoder has no profile width; we already force center=False.
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=".*media\\.width\\.pixel.*")
-            for y in range(0, img.height, frag_h):
-                band = img.crop((0, y, img.width, min(y + frag_h, img.height)))
-                d.image(band, **enc_conf)
+            d.image(img, **image_conf)
         d.cut(feed=True)
         # _CMD_INIT (ESC @) resets the printer's ESC/POS command parser to a
-        # known state before the image bands so no stale mid-command state
-        # from a previous job corrupts the GS v 0 header.
+        # known state before the image data so no stale mid-command state
+        # from a previous job corrupts the image stream.
         return _CMD_INIT + d.output
 
     # ------------------------------------------------------------------ #
