@@ -13,6 +13,7 @@ SERVICES_DIR := $(REPO_DIR)/services/odoo_server
 DOCKER_SCRIPTS := $(REPO_DIR)/docker/scripts
 
 # Overridable at the command line, e.g.: make install HW_USER=myuser
+SUDO      ?= sudo
 HW_USER   ?= hw_user
 HOST_IP   ?= 192.168.1.146
 DOMAIN    ?= traefik-client.local
