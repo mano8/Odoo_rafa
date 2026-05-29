@@ -95,6 +95,9 @@ body {
             word-break: break-all;
             margin: 0;
         }
+        .service-log-fullwidth {
+            max-height: 360px;
+        }
         #contentModalBody.service-log-expanded {
             background-color: #1e1e1e;
             color: #d4d4d4;

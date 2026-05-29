@@ -1,16 +1,16 @@
-<div class="col-12">
-    <div class="card">
-        <div class="card-body">
+<div class="col-lg-4 d-flex flex-column">
+    <div class="card h-100">
+        <div class="card-body d-flex flex-column">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h2 class="card-title h5 mb-0">Estado de Servicios</h2>
                 <div class="d-flex align-items-center gap-2">
                     <span id="servicesLastUpdate" class="text-muted small"></span>
-                    <button id="btnRefreshServices" class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-sync-alt me-1"></i>Actualizar
+                    <button id="btnRefreshServices" class="btn btn-sm btn-outline-secondary" title="Actualizar">
+                        <i class="fas fa-sync-alt"></i>
                     </button>
                 </div>
             </div>
-            <div id="servicesStatusGrid" class="d-flex flex-wrap gap-2">
+            <div id="servicesStatusGrid" class="d-flex flex-wrap gap-2 flex-grow-1 align-content-start">
                 <p class="text-muted small">Cargando estado de servicios...</p>
             </div>
         </div>
