@@ -22,7 +22,8 @@ SECRET_KEY="changethis"
 PRINTER_KEY="PP6800"
 LOG_LEVEL="Info"
 
-# HW_PROXY_URL: URL hw_status uses to reach hw_proxy.
-# Must use the server's LAN IP (not localhost) so browsers on remote machines
-# can also reach it directly.  hw_proxy listens on port 9002.
-HW_PROXY_URL="http://192.168.1.146:9002"
+# HW_PROXY_URL: URL the hw_status frontend injects for browser → hw_proxy calls.
+# MUST use the Traefik HTTPS entry point (port 9001) — NOT hw_proxy's direct
+# HTTP port 9002 — because browsers block mixed HTTP requests from HTTPS pages.
+# Traefik routes https://...:9001/hw_proxy/* → http://192.168.1.146:9002.
+HW_PROXY_URL="https://192.168.1.146:9001"
