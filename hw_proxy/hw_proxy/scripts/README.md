@@ -20,9 +20,11 @@ sudo visudo /etc/sudoers.d/hw_user
 # Allow "hw_user" user to run only these scripts as root, without password
 Defaults:hw_user !requiretty
 
-hw_user ALL=(root) NOPASSWD: \
-    /opt/hw_proxy/hw_proxy/scripts/reboot.sh, \
-    /opt/hw_proxy/hw_proxy/scripts/shutdown.sh
+hw_user ALL=(ALL) NOPASSWD: \
+    /opt/Odoo_rafa/hw_proxy/hw_proxy/scripts/reboot.sh, \
+    /opt/Odoo_rafa/hw_proxy/hw_proxy/scripts/shutdown.sh, \
+    /opt/Odoo_rafa/hw_proxy/hw_proxy/scripts/get_logs.sh, \
+    /opt/Odoo_rafa/hw_proxy/hw_proxy/scripts/get_services_status.sh
 ```
 
 Verify
