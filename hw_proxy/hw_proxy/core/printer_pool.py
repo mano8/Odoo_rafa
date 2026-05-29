@@ -234,9 +234,10 @@ class PrinterPool:
         for attempt in range(2):
             try:
                 h = self._ensure()
+                is_online = h.printer.is_online()
                 code = h.printer.paper_status()
                 paper = {2: "ok", 1: "near_end", 0: "no_paper"}.get(code, "unknown")
-                return {"is_online": code in (0, 1, 2), "paper_status": paper}
+                return {"is_online": is_online, "paper_status": paper}
             except Exception as e:
                 if attempt == 0:
                     self._reconnect()

@@ -16,8 +16,8 @@ SyslogIdentifier=hw_proxy
 
 # hw_user must be in the dialout and lp groups for serial/printer access
 # (sudo usermod -aG dialout,lp hw_user)
-CapabilityBoundingSet=
-AmbientCapabilities=
+CapabilityBoundingSet=CAP_SETUID CAP_SETGID
+AmbientCapabilities=CAP_SETUID CAP_SETGID
 SupplementaryGroups=dialout lp
 
 [Install]
