@@ -316,6 +316,60 @@ class PrinterPool:
                 return sz
         return 1
 
+    @staticmethod
+    def _wrap_row(left: str, right: str, w: int) -> list[str]:
+        """Word-wrap a label/price row into w-char print lines.
+
+        Only the left (label) wraps across as many lines as needed at full
+        width w.  The right (price) is right-justified on the vertically
+        centred label line — (N-1)//2 for N label lines — so it appears
+        visually centred beside the wrapped label block.
+        Font size never changes across lines.
+        """
+        last_w = max(1, w - len(right) - 1) if right else w
+
+        # Pass 1: word-wrap label to full width to determine line count.
+        chunks: list[str] = []
+        remaining = left.strip()
+        while remaining:
+            if len(remaining) <= w:
+                chunks.append(remaining)
+                break
+            chunk = remaining[:w]
+            bp = chunk.rfind(" ")
+            if bp <= 0:
+                bp = w
+            chunks.append(remaining[:bp].rstrip())
+            remaining = remaining[bp:].lstrip()
+        if not chunks:
+            chunks = [""]
+
+        # Price line: vertically centred index.
+        pi = (len(chunks) - 1) // 2
+
+        # If the centred line is too wide to fit the price, split it.
+        if right and len(chunks[pi]) > last_w:
+            piece = chunks[pi]
+            sub = piece[:last_w]
+            bp = sub.rfind(" ")
+            if bp <= 0:
+                bp = last_w
+            rest = piece[bp:].lstrip()
+            chunks[pi : pi + 1] = [piece[:bp].rstrip(), rest] if rest else [piece[:bp].rstrip()]
+
+        # Build output: label only on all lines except pi, which gets the price.
+        result: list[str] = []
+        for i, chunk in enumerate(chunks):
+            if i == pi and right:
+                gap = w - len(chunk) - len(right)
+                if gap < 1:
+                    chunk = chunk[:last_w]
+                    gap = 1
+                result.append(chunk + " " * gap + right)
+            else:
+                result.append(chunk)
+        return result
+
     # ESC t 19 — select CP858 code page (has € at 0xD5, superset of PC437)
     _CMD_CP858 = b"\x1b\x74\x13"
 
@@ -370,10 +424,10 @@ class PrinterPool:
             elif line.t == "row":
                 left = line.l or ""
                 right = line.r or ""
-                actual_sz = self._fit_sz(len(left) + len(right) + 1, max_line_sz, W)
+                actual_sz = max(1, min(3, max_line_sz))
                 w = W // _SZ_W[actual_sz]
-                # Row lines (product name/price, totals) are always bold for
-                # readability; the DOM scan bold flag is ignored here.
+                # Row lines are always bold; label wraps to multiple lines
+                # if needed, price right-justified on the centred label line.
                 d.set(
                     align="left",
                     bold=True,
@@ -381,11 +435,8 @@ class PrinterPool:
                     height=_SZ_H[actual_sz],
                     custom_size=True,
                 )
-                gap = w - len(left) - len(right)
-                if gap < 1:
-                    left = left[: max(0, w - len(right) - 1)]
-                    gap = 1
-                d._raw(self._txt(left + " " * gap + right + "\n"))
+                for row_line in self._wrap_row(left, right, w):
+                    d._raw(self._txt(row_line + "\n"))
 
         if data.cut:
             d.cut(feed=True)
