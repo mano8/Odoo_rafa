@@ -23,7 +23,7 @@ CERT_NAME ?= local-cert
 .PHONY: help check install \
         install-user install-sudoers install-firewall install-systemd \
         certs-traefik certs-docker \
-        deploy-hw-proxy volumes build \
+        deploy-hw-proxy update-hw-proxy volumes build \
         up down restart update \
         logs status backup
 
@@ -38,6 +38,7 @@ help:
 	@printf "  %-26s %s\n" "make certs-traefik"      "Generate Traefik TLS certificates"
 	@printf "  %-26s %s\n" "make certs-docker"       "Generate Docker mTLS certificates"
 	@printf "  %-26s %s\n" "make deploy-hw-proxy"    "Deploy hw_proxy service (venv + code)"
+	@printf "  %-26s %s\n" "make update-hw-proxy"    "Pull main, redeploy hw_proxy, restart service"
 	@printf "  %-26s %s\n" "make install-systemd"    "Install and enable systemd services"
 	@printf "  %-26s %s\n" "make volumes"            "Fix Docker volume ownership (userns-remap)"
 	@printf "  %-26s %s\n" "make build"              "Build Docker images"
@@ -161,6 +162,17 @@ deploy-hw-proxy:
 	@sudo HW_USER=$(HW_USER) bash $(REPO_DIR)/hw_proxy/hw_proxy/scripts/update_hw_proxy.sh
 	@echo "[deploy-hw-proxy] Done."
 
+# Pull latest code, redeploy hw_proxy venv, restart the systemd service.
+# Use this for routine hw_proxy updates without touching the Docker stack.
+update-hw-proxy:
+	@echo "[update-hw-proxy] Pulling latest code from origin main..."
+	@cd $(REPO_DIR) && sudo git pull origin main
+	@echo "[update-hw-proxy] Running update script..."
+	@sudo $(REPO_DIR)/hw_proxy/hw_proxy/scripts/update_hw_proxy.sh
+	@echo "[update-hw-proxy] Restarting hw_proxy service..."
+	@sudo systemctl restart hw_proxy
+	@echo "[update-hw-proxy] Done."
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Systemd services
 # ──────────────────────────────────────────────────────────────────────────────
@@ -215,12 +227,7 @@ restart: down up
 # Update — pull latest code and redeploy everything
 # ──────────────────────────────────────────────────────────────────────────────
 update:
-	@echo "[update] Pulling latest code..."
-	@git -C $(REPO_DIR) pull
-	@echo "[update] Redeploying hw_proxy..."
-	@$(MAKE) deploy-hw-proxy
-	@echo "[update] Restarting hw_proxy service..."
-	@sudo systemctl restart hw_proxy.service
+	@$(MAKE) update-hw-proxy
 	@echo "[update] Rebuilding Docker images..."
 	@$(MAKE) build
 	@echo "[update] Restarting Docker stack..."
