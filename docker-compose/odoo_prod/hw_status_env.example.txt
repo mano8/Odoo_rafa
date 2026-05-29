@@ -1,0 +1,28 @@
+# hw_status production environment — rename to hw_status.env
+# DOMAIN: server IP or hostname (used by Traefik)
+DOMAIN="192.168.1.146"
+ENVIRONMENT="production"
+
+API_PREFIX="/hw_status"
+SET_OPEN_API=false
+SET_DOCS=false
+SET_REDOC=false
+
+PROJECT_NAME="OdooHwStatus"
+STACK_NAME="fiesta-pos-hw-status"
+
+STATIC_BASE_PATH="/opt/hw_status/app/static"
+TEMPLATES_BASE_PATH="/opt/hw_status/app/templates"
+
+# BACKEND_HOST: Odoo URL accessible from the hw_status container (via Traefik)
+BACKEND_HOST="https://192.168.1.146:9000"
+
+SECRET_KEY="changethis"
+
+PRINTER_KEY="PP6800"
+LOG_LEVEL="Info"
+
+# HW_PROXY_URL: URL hw_status uses to reach hw_proxy.
+# Must use the server's LAN IP (not localhost) so browsers on remote machines
+# can also reach it directly.  hw_proxy listens on port 9002.
+HW_PROXY_URL="http://192.168.1.146:9002"
