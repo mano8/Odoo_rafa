@@ -124,12 +124,14 @@ make up             # generate odoo.conf, fix volumes, start all containers
 For day-to-day operations:
 
 ```bash
-make update-hw-proxy    # pull main + redeploy hw_proxy venv + restart service
-make update-odoo-addon  # run addon update script + restart Odoo container
-make update             # full update: hw_proxy + Docker rebuild + compose restart
-make status             # show status of all systemd services and Docker containers
-make backup             # trigger a PostgreSQL database backup
-make logs               # follow all container logs
+make stack-up               # rebuild images and start the full stack (online)
+make stack-up OFFLINE=1     # same but vendors wheels + loads image tarballs first (air-gapped)
+make update-hw-proxy        # pull main + redeploy hw_proxy venv + restart service
+make update-odoo-addon      # run addon update script + restart Odoo container
+make update                 # full update: hw_proxy + Docker rebuild + compose restart
+make status                 # show status of all systemd services and Docker containers
+make backup                 # trigger a PostgreSQL database backup
+make logs                   # follow all container logs
 ```
 
 > The subsequent sections below describe each step in detail for reference or manual setup.

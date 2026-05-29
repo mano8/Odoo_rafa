@@ -17,6 +17,9 @@ HW_USER   ?= hw_user
 HOST_IP   ?= 192.168.1.146
 DOMAIN    ?= traefik-client.local
 CERT_NAME ?= local-cert
+# Set OFFLINE=1 to vendor wheels and load image tarballs before building.
+# e.g.: make stack-up OFFLINE=1
+OFFLINE   ?= 0
 
 .DEFAULT_GOAL := help
 
@@ -24,7 +27,7 @@ CERT_NAME ?= local-cert
         install-user install-sudoers install-firewall install-systemd \
         certs-traefik certs-docker \
         deploy-hw-proxy update-hw-proxy update-odoo-addon volumes build \
-        up down restart update \
+        stack-up up down restart update \
         logs status backup
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -44,7 +47,8 @@ help:
 	@printf "  %-26s %s\n" "make volumes"            "Fix Docker volume ownership (userns-remap)"
 	@printf "  %-26s %s\n" "make build"              "Build Docker images"
 	@printf "\n\033[4mRuntime\033[0m:\n"
-	@printf "  %-26s %s\n" "make up"                 "Start the Docker Compose stack"
+	@printf "  %-26s %s\n" "make stack-up"           "Rebuild images and start stack (add OFFLINE=1 for air-gapped)"
+	@printf "  %-26s %s\n" "make up"                 "Start the Docker Compose stack (no rebuild)"
 	@printf "  %-26s %s\n" "make down"               "Stop the Docker Compose stack"
 	@printf "  %-26s %s\n" "make restart"            "Restart the Docker Compose stack"
 	@printf "  %-26s %s\n" "make update"             "Pull code, redeploy hw_proxy, rebuild"
@@ -217,6 +221,25 @@ build:
 # ──────────────────────────────────────────────────────────────────────────────
 # Stack lifecycle
 # ──────────────────────────────────────────────────────────────────────────────
+
+# Rebuild images and (re)start the full Odoo POS stack.
+# Online (default):  make stack-up
+# Offline/air-gap:   make stack-up OFFLINE=1
+stack-up:
+ifeq ($(OFFLINE),1)
+	@echo "[stack-up] Offline mode: vendoring wheels and loading images…"
+	@$(MAKE) -C $(REPO_DIR)/docker_offline load SUDO=$(SUDO)
+endif
+	@echo "[stack-up] Building Docker images…"
+	@cd $(COMPOSE_DIR) && sudo docker compose build
+	@echo "[stack-up] Generating odoo.conf…"
+	@cd $(COMPOSE_DIR) && sudo bash $(SCRIPTS_DIR)/generate_odoo_conf.sh
+	@echo "[stack-up] Fixing volume ownership…"
+	@cd $(COMPOSE_DIR) && sudo bash $(SCRIPTS_DIR)/auto_chown_volumes.sh prod
+	@echo "[stack-up] Starting stack…"
+	@cd $(COMPOSE_DIR) && sudo docker compose up -d --remove-orphans
+	@echo "[stack-up] Done. Use 'make logs' to follow output."
+
 up:
 	@echo "[up] Generating odoo.conf from .env..."
 	@cd $(COMPOSE_DIR) && sudo bash $(SCRIPTS_DIR)/generate_odoo_conf.sh
