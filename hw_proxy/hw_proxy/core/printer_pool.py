@@ -157,15 +157,18 @@ class PrinterPool:
         d.cut(feed=True)
         output = d.output
         if image_conf.get("impl") == "bitImageColumn":
-            patched = output.replace(b"\x1b\x33\x10", b"\x1b\x33\x15")
-            n_before = output.count(b"\x1b\x33\x10")
-            n_after = patched.count(b"\x1b\x33\x15")
-            logger.info(
-                "[PrinterPool] ESC3 patch: replaced=%d  n_before_left=%d  n_after=%d  "
-                "output_len=%d",
-                n_before, output.count(b"\x1b\x33\x10"), n_after, len(patched),
-            )
-            output = patched
+            # python-escpos 3.1 hardcodes ESC 3 n=16 before bitImageColumn strips.
+            # Replace ONLY the first occurrence — the actual ESC 3 command at the
+            # start of the bitImageColumn output.  A second coincidental \x1b\x33\x10
+            # byte sequence can appear inside the column data and must NOT be patched.
+            # n=24: 24 × (1/203") = strip height for 203 DPI (24 dots/203 DPI = exact).
+            esc3_default = b"\x1b\x33\x10"
+            esc3_patched = b"\x1b\x33\x18"  # n=24
+            if esc3_default in output:
+                output = output.replace(esc3_default, esc3_patched, 1)
+                logger.info(
+                    "[PrinterPool] ESC3 patch n=16→24 applied  output_len=%d", len(output)
+                )
         # _CMD_INIT (ESC @) resets the printer's ESC/POS command parser to a
         # known state before the image data so no stale mid-command state
         # from a previous job corrupts the image stream.
