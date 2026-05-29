@@ -124,10 +124,12 @@ make up             # generate odoo.conf, fix volumes, start all containers
 For day-to-day operations:
 
 ```bash
-make update         # git pull + redeploy hw_proxy + rebuild containers
-make status         # show status of all systemd services and Docker containers
-make backup         # trigger a PostgreSQL database backup
-make logs           # follow all container logs
+make update-hw-proxy    # pull main + redeploy hw_proxy venv + restart service
+make update-odoo-addon  # run addon update script + restart Odoo container
+make update             # full update: hw_proxy + Docker rebuild + compose restart
+make status             # show status of all systemd services and Docker containers
+make backup             # trigger a PostgreSQL database backup
+make logs               # follow all container logs
 ```
 
 > The subsequent sections below describe each step in detail for reference or manual setup.
@@ -315,31 +317,25 @@ Replaces the raster PNG receipt path with a structured **JSON → ESC/POS** pipe
 
 ### pos_json_printer Update — Step-by-step
 
-After merging changes to `main`, deploy to the server with these steps **in order**:
+After merging changes to `main`, deploy to the server:
 
 ```bash
-# 1. Pull the latest code from GitHub
-cd /opt/Odoo_rafa
-sudo git pull origin main
-
-# 2. Copy the updated addon files into the Odoo addons directory
-sudo update_addon.sh
-
-# 3. Restart the Odoo container so it detects the new module version
-sudo docker restart odoo_prod-fiesta_odoo-1
+make update-odoo-addon
 ```
 
-> **Why `docker restart` and not `odoo -u`?**
-> On restart Odoo automatically detects the version change in `__manifest__.py` and upgrades the module. No manual `-u pos_json_printer` command is needed.
+This runs `update_addon.sh` then restarts the Odoo container. On restart Odoo detects
+the version change in `__manifest__.py` and upgrades the module automatically — no
+manual `-u pos_json_printer` needed.
 
 ### hw_proxy Update
 
 If `hw_proxy` source files also changed:
 
 ```bash
-sudo update_hw_proxy.sh
-sudo systemctl restart hw_proxy
+make update-hw-proxy
 ```
+
+Pulls `main`, re-syncs the venv via `update_hw_proxy.sh`, and restarts `hw_proxy`.
 
 ---
 
