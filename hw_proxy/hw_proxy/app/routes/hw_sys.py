@@ -1,11 +1,12 @@
 """
 Api routes for hw_sys module
 """
+import asyncio
 import logging
 import subprocess
 import psutil
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse, PlainTextResponse
 from hw_proxy.core.deps import get_printer_pool
 from hw_proxy.core.printer_pool import PrinterPool
 from hw_proxy.schemas.hw_sys import JournalQuery
@@ -15,6 +16,28 @@ from hw_proxy.tools.utils import HwUtils
 logger = logging.getLogger("hw_proxy")
 
 router = APIRouter(prefix="/system", tags=["system"])
+
+_SYSTEMD_SERVICES = ["hw_proxy", "odoo-pos", "monitoring", "serial-config"]
+_DOCKER_CONTAINERS = ["traefik", "fiesta_db", "hw_status_service", "fiesta_odoo"]
+
+# journald priority ceiling per log level (includes all levels at or above)
+_JOURNAL_PRIORITY = {"error": "err", "warning": "warning", "info": "info"}
+
+# keywords that mark important lines in docker container stdout/stderr
+_DOCKER_IMPORTANT = ("error", "warn", "critical", "fatal", "exception", "traceback")
+
+
+def _run_cmd(cmd: list[str], timeout: int = 10) -> tuple[str, str]:
+    """Run a subprocess and return (stdout, stderr). Never raises."""
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return r.stdout, r.stderr
+    except subprocess.TimeoutExpired:
+        return "", "Command timed out"
+    except FileNotFoundError:
+        return "", f"Command not found: {cmd[0]}"
+    except Exception as exc:
+        return "", str(exc)
 
 
 @router.post("/shutdown")
@@ -149,3 +172,74 @@ async def open_cashdrawer(pool: PrinterPool = Depends(get_printer_pool)):
         return JSONResponse({"success": True})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/logs", response_class=PlainTextResponse)
+async def get_service_logs(
+    service: str = Query(..., description="Service name (systemd or docker container)"),
+    lines: int = Query(100, ge=1, le=500, description="Max lines to return"),
+    level: str = Query("warning", description="Log level: error, warning, info, all"),
+) -> str:
+    """Return recent logs for a service, filtered to the given level."""
+    if service in _SYSTEMD_SERVICES:
+        svc_unit = service if service.endswith(".service") else f"{service}.service"
+        cmd = [
+            "journalctl", "-u", svc_unit,
+            "-n", str(lines),
+            "--no-pager",
+            "--output=short-iso",
+        ]
+        if level != "all":
+            cmd.append(f"-p{_JOURNAL_PRIORITY.get(level, 'warning')}")
+        stdout, stderr = await asyncio.to_thread(_run_cmd, cmd)
+        if not stdout and stderr:
+            return f"[Error fetching logs for {service}]\n{stderr}"
+        return stdout or f"[No logs found for {service} at level={level}]"
+
+    if service in _DOCKER_CONTAINERS:
+        cmd = ["docker", "logs", "--tail", str(lines), service]
+        stdout, stderr = await asyncio.to_thread(_run_cmd, cmd)
+        # docker writes app logs to stderr by convention; merge both streams
+        combined = "\n".join(filter(None, [stderr, stdout])).strip()
+        if not combined:
+            return f"[No logs found for container {service}]"
+        if level != "all":
+            filtered = [
+                ln for ln in combined.splitlines()
+                if any(p in ln.lower() for p in _DOCKER_IMPORTANT)
+            ]
+            return "\n".join(filtered) or f"[No {level}+ logs found for {service}]"
+        return combined
+
+    return f"[Unknown service: {service}]"
+
+
+@router.get("/services/status")
+async def get_services_status() -> dict:
+    """Return running status for all managed systemd and docker services."""
+    services = []
+
+    for svc in _SYSTEMD_SERVICES:
+        svc_unit = svc if svc.endswith(".service") else f"{svc}.service"
+        stdout, err = await asyncio.to_thread(_run_cmd, ["systemctl", "is-active", svc_unit])
+        state = stdout.strip() if stdout.strip() else (err.strip() or "unknown")
+        services.append({
+            "name": svc,
+            "type": "systemd",
+            "status": state,
+            "active": state == "active",
+        })
+
+    for container in _DOCKER_CONTAINERS:
+        stdout, err = await asyncio.to_thread(
+            _run_cmd, ["docker", "inspect", "--format", "{{.State.Status}}", container]
+        )
+        state = stdout.strip() if stdout.strip() else "not found"
+        services.append({
+            "name": container,
+            "type": "docker",
+            "status": state,
+            "active": state == "running",
+        })
+
+    return {"services": services}

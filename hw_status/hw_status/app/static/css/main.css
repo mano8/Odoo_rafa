@@ -76,3 +76,41 @@ body {
         .modal-title-custom { margin-bottom: 0; line-height: 1.5; font-size: 1.25rem; }
         .close-custom { font-size: 1.25rem; font-weight: 700; line-height: 1; color: #000; text-shadow: 0 1px 0 #fff; opacity: .5; background-color: transparent; border: 0; cursor: pointer; }
         .close-custom:hover { opacity: .75; }
+
+        /* Extra-wide modal for log expansion */
+        .modal-custom-content.modal-xl-custom { max-width: min(1400px, 95vw); }
+
+        /* Service log panel — dark console look */
+        .service-log-pre {
+            overflow-y: auto;
+            min-height: 120px;
+            max-height: 260px;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 0.75rem;
+            border-radius: 0.25rem;
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.78em;
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin: 0;
+        }
+        #contentModalBody.service-log-expanded {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            max-height: 80vh;
+        }
+
+        /* Services status badges */
+        .service-status-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.35rem 0.65rem;
+            border-radius: 0.375rem;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            font-size: 0.825rem;
+        }
+        .service-item-name { font-weight: 500; }
+        .service-item-status { color: #6c757d; font-size: 0.75rem; }

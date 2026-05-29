@@ -1,5 +1,3 @@
-//'http://192.168.1.146:9002/system'
-
 const App = {
     UI: {
         // Hardware Tab
@@ -18,6 +16,17 @@ const App = {
         paperStatusDot: document.getElementById('paperStatusDot'),
         paperStatusText: document.getElementById('paperStatusText'),
         portInfoContent: document.getElementById('portInfoContent'),
+
+        // Service Logs Panel
+        selectLogService: document.getElementById('selectLogService'),
+        btnRefreshServiceLogs: document.getElementById('btnRefreshServiceLogs'),
+        btnExpandServiceLogs: document.getElementById('btnExpandServiceLogs'),
+        logOutputService: document.getElementById('logOutputService'),
+
+        // Services Status Panel
+        servicesStatusGrid: document.getElementById('servicesStatusGrid'),
+        servicesLastUpdate: document.getElementById('servicesLastUpdate'),
+        btnRefreshServices: document.getElementById('btnRefreshServices'),
 
         // Global
         btnShutdown: document.getElementById('btn-shutdown'),
@@ -38,106 +47,79 @@ const App = {
         hardwareCountdownIntervalId: null,
         isHardwareRefreshing: false,
         currentModalAction: null,
-        fullLogContentSystem: '',
+        fullLogContentService: '',
         fullSttyOutput: '',
     },
     Constants: {
-        HARDWARE_UPDATE_INTERVAL_MS: 60000, // 60 segundos
+        HARDWARE_UPDATE_INTERVAL_MS: 60000,
     },
     API: {
         _baseUrl: window.HW_PROXY_BASE_URL || 'http://localhost:9002/hw_proxy/system',
         async _fetch(url, options = {}) {
-            //await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 200));
-            //console.log(`Simulando fetch a: ${url}`, options);
-            let data = null
             const fetchOptions = {
                 method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(options.headers || {})
-                },
-                ...options
+                headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+                ...options,
             };
-            // Optional: Remove body for GET requests to prevent issues
-            if (fetchOptions.method === 'GET' && fetchOptions.body) {
-                delete fetchOptions.body;
+            if (fetchOptions.method === 'GET' && fetchOptions.body) delete fetchOptions.body;
+
+            const response = await fetch(url, fetchOptions);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Fetch error ${response.status}: ${errorText}`);
             }
 
-            try {
-                const response = await fetch(url, fetchOptions);
+            const contentType = response.headers.get('content-type');
+            const data = (contentType && contentType.includes('application/json'))
+                ? await response.json()
+                : await response.text();
 
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Fetch error ${response.status}: ${errorText}`);
-                }
-
-                // Try to parse as JSON, fallback to text if invalid JSON
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    data = await response.json();
-                } else {
-                    data = await response.text(); // e.g., for logs
-                }
-            } catch (error) {
-                console.error(`Error fetching ${url}:`, error);
-                throw error;
-            }
-
-            if (data === null) {
-                console.error(`Empty response from ${url}...`);
-                throw new Error(`Empty response from ${url}...`);
-            }
-
-            if (url.startsWith(`${this._baseUrl}/printer_status`)) {
+            // Transform printer_status response: convert boolean read/write flags to strings
+            if (url.startsWith(`${this._baseUrl}/printer_status`) && typeof data === 'object') {
                 return {
                     ...data,
                     serialInfo: {
                         ...data.serialInfo,
-                        readStatus: data.serialInfo?.readStatus ? 'OK' : 'Error', writeStatus: data.serialInfo?.writeStatus ? 'OK' : 'Error',
-                        sttyOutput: ``
-                    }
+                        readStatus: data.serialInfo?.readStatus ? 'OK' : 'Error',
+                        writeStatus: data.serialInfo?.writeStatus ? 'OK' : 'Error',
+                        sttyOutput: '',
+                    },
                 };
-            } else if (url.startsWith(`${this._baseUrl}/system_status`)) {
-                return {
-                    dockerRunning: Math.random() > 0.2,
-                    hwProxyRunning: Math.random() > 0.3,
-                };
-            } else if (url.startsWith(`${this._baseUrl}/print_ticket`)) {
-                return { success: Math.random() > 0.2 };
-            } else if (url.startsWith(`${this._baseUrl}/open_cashdrawer`)) {
-                return { success: Math.random() > 0.1 };
-            } else if (url.startsWith(`${this._baseUrl}/logs`)) {
-                const params = new URLSearchParams(url.split('?')[1]);
-                const journal = params.get('journal');
-                const timeRange = params.get('time_range');
-                const mockLogArray = [
-                    `--- Registros para ${journal}, Rango: ${timeRange} ---`,
-                    `${new Date().toISOString()} [INFO] Entrada de registro simulada 1.`,
-                    ...Array.from({ length: 5 }, (_, i) => `${new Date().toISOString()} [INFO] Más líneas de registro simuladas ${i + 1}.`)
-                ];
-                return mockLogArray.join('\n');
-            } else if (url.startsWith(`${this._baseUrl}/download_db`)) {
-                return { success: true, message: 'Descarga de base de datos iniciada.' };
-            } else if (url.startsWith(`${this._baseUrl}/restart_docker`)) {
-                return { success: true, message: 'Contenedores Docker reiniciados.' };
-            } else if (url.startsWith(`${this._baseUrl}/stop_docker_compose`)) {
-                return { success: true, message: 'Docker Compose detenido.' };
-            } else if (url.startsWith(`${this._baseUrl}/shutdown`) || url.startsWith(`${this._baseUrl}/reboot`)) {
-                return { message: 'Comando recibido' };
             }
-            throw new Error(`URL de API simulada no reconocida: ${url}`);
+            return data;
         },
 
-        async getPrinterStatus() { try { return await this._fetch(`${this._baseUrl}/printer_status`); } catch (e) { console.error(e); throw e; } },
-        async getSystemStatus() { try { return await this._fetch(`${this._baseUrl}/system_status`); } catch (e) { console.error(e); throw e; } },
-        async printTicket() { try { const d = await this._fetch(`${this._baseUrl}/print_ticket`); return d.success; } catch (e) { console.error(e); return false; } },
-        async openCashDrawer() { try { const d = await this._fetch(`${this._baseUrl}/open_cashdrawer`); return d.success; } catch (e) { console.error(e); return false; } },
-        async fetchLogs(journal, timeRange) { try { return await this._fetch(`${this._baseUrl}/logs?journal=${encodeURIComponent(journal)}&time_range=${encodeURIComponent(timeRange)}`); } catch (e) { console.error(e); return `Error: ${e.message}`; } },
-        async downloadDb() { try { return await this._fetch(`${this._baseUrl}/download_db`, { method: 'POST' }); } catch (e) { console.error(e); return { success: false, message: 'Error al descargar BD.' }; } },
-        async restartDocker() { try { return await this._fetch(`${this._baseUrl}/restart_docker`, { method: 'POST' }); } catch (e) { console.error(e); return { success: false, message: 'Error al reiniciar Docker.' }; } },
-        async stopDockerCompose() { try { return await this._fetch(`${this._baseUrl}/stop_docker_compose`, { method: 'POST' }); } catch (e) { console.error(e); return { success: false, message: 'Error al detener Docker Compose.' }; } },
-        async shutdown() { try { await this._fetch(`${this._baseUrl}/shutdown`, { method: 'POST' }); return true; } catch (e) { console.error(e); return false; } },
-        async reboot() { try { await this._fetch(`${this._baseUrl}/reboot`, { method: 'POST' }); return true; } catch (e) { console.error(e); return false; } }
+        async getPrinterStatus() {
+            try { return await this._fetch(`${this._baseUrl}/printer_status`); }
+            catch (e) { console.error(e); throw e; }
+        },
+        async printTicket() {
+            try { const d = await this._fetch(`${this._baseUrl}/print_ticket`); return d.success; }
+            catch (e) { console.error(e); return false; }
+        },
+        async openCashDrawer() {
+            try { const d = await this._fetch(`${this._baseUrl}/open_cashdrawer`); return d.success; }
+            catch (e) { console.error(e); return false; }
+        },
+        async fetchServiceLogs(service, level = 'warning', lines = 100) {
+            try {
+                return await this._fetch(
+                    `${this._baseUrl}/logs?service=${encodeURIComponent(service)}&level=${encodeURIComponent(level)}&lines=${lines}`
+                );
+            } catch (e) { console.error(e); return `Error: ${e.message}`; }
+        },
+        async getServicesStatus() {
+            try { return await this._fetch(`${this._baseUrl}/services/status`); }
+            catch (e) { console.error(e); return null; }
+        },
+        async shutdown() {
+            try { await this._fetch(`${this._baseUrl}/shutdown`, { method: 'POST' }); return true; }
+            catch (e) { console.error(e); return false; }
+        },
+        async reboot() {
+            try { await this._fetch(`${this._baseUrl}/reboot`, { method: 'POST' }); return true; }
+            catch (e) { console.error(e); return false; }
+        },
     },
 
     HardwareStatusManager: {
@@ -163,19 +145,25 @@ const App = {
                 App.UI.printerStatusText.textContent = status.printerOnline ? 'En línea' : 'Fuera de línea';
                 App.UI.printerStatusDot.className = `status-dot ${status.printerOnline ? 'status-green' : 'status-red'}`;
                 if (status.paperOk) {
-                    App.UI.paperStatusText.textContent = 'OK'; App.UI.paperStatusDot.className = 'status-dot status-green';
+                    App.UI.paperStatusText.textContent = 'OK';
+                    App.UI.paperStatusDot.className = 'status-dot status-green';
                 } else if (status.paperLow) {
-                    App.UI.paperStatusText.textContent = 'Papel Bajo'; App.UI.paperStatusDot.className = 'status-dot status-yellow';
+                    App.UI.paperStatusText.textContent = 'Papel Bajo';
+                    App.UI.paperStatusDot.className = 'status-dot status-yellow';
                 } else {
-                    App.UI.paperStatusText.textContent = 'Sin Papel / Error'; App.UI.paperStatusDot.className = 'status-dot status-red';
+                    App.UI.paperStatusText.textContent = 'Sin Papel / Error';
+                    App.UI.paperStatusDot.className = 'status-dot status-red';
                 }
-                App.PortInfoManager.display(status.devicePortType, status); // Reutiliza el PortInfoManager
+                App.PortInfoManager.display(status.devicePortType, status);
                 App.UI.actionStatus.textContent = 'Estado de hardware actualizado.';
             } catch (error) {
                 App.UI.actionStatus.textContent = 'Error al actualizar estado de hardware.';
-                App.UI.connectionStatusText.textContent = 'Error'; App.UI.connectionStatusDot.className = 'status-dot status-red';
-                App.UI.printerStatusText.textContent = 'Error'; App.UI.printerStatusDot.className = 'status-dot status-red';
-                App.UI.paperStatusText.textContent = 'Error'; App.UI.paperStatusDot.className = 'status-dot status-red';
+                App.UI.connectionStatusText.textContent = 'Error';
+                App.UI.connectionStatusDot.className = 'status-dot status-red';
+                App.UI.printerStatusText.textContent = 'Error';
+                App.UI.printerStatusDot.className = 'status-dot status-red';
+                App.UI.paperStatusText.textContent = 'Error';
+                App.UI.paperStatusDot.className = 'status-dot status-red';
                 if (App.UI.portInfoContent) App.UI.portInfoContent.innerHTML = '<p class="text-danger">No se pudo cargar la información del puerto.</p>';
             } finally {
                 this._hideLoader();
@@ -192,30 +180,20 @@ const App = {
             }
         },
         startAutoUpdate() {
-            this.stopAutoUpdate(); // Clear existing intervals first
-            if (!App.State.hardwareAutoUpdateEnabled) {
-                this.updateCountdownDisplay();
-                return;
-            }
-
+            this.stopAutoUpdate();
+            if (!App.State.hardwareAutoUpdateEnabled) { this.updateCountdownDisplay(); return; }
             App.State.hardwareTimeUntilNextUpdate = App.Constants.HARDWARE_UPDATE_INTERVAL_MS / 1000;
             this.updateCountdownDisplay();
-
             App.State.hardwareCountdownIntervalId = setInterval(() => {
                 App.State.hardwareTimeUntilNextUpdate--;
-                if (App.State.hardwareTimeUntilNextUpdate < 0) {
-                    App.State.hardwareTimeUntilNextUpdate = 0; // Prevent negative display briefly
-                }
+                if (App.State.hardwareTimeUntilNextUpdate < 0) App.State.hardwareTimeUntilNextUpdate = 0;
                 this.updateCountdownDisplay();
             }, 1000);
-
             App.State.hardwareUpdateIntervalId = setInterval(async () => {
                 await this.fetchAndDisplayStatus();
-                // Reset countdown after fetch completes and before next interval starts it again
-                clearInterval(App.State.hardwareCountdownIntervalId); // Stop current countdown
-                App.State.hardwareTimeUntilNextUpdate = App.Constants.HARDWARE_UPDATE_INTERVAL_MS / 1000; // Reset time
-                this.updateCountdownDisplay(); // Show initial time for next cycle
-                // Restart countdown for the new cycle
+                clearInterval(App.State.hardwareCountdownIntervalId);
+                App.State.hardwareTimeUntilNextUpdate = App.Constants.HARDWARE_UPDATE_INTERVAL_MS / 1000;
+                this.updateCountdownDisplay();
                 App.State.hardwareCountdownIntervalId = setInterval(() => {
                     App.State.hardwareTimeUntilNextUpdate--;
                     if (App.State.hardwareTimeUntilNextUpdate < 0) App.State.hardwareTimeUntilNextUpdate = 0;
@@ -234,27 +212,18 @@ const App = {
             App.State.hardwareAutoUpdateEnabled = event.target.checked;
             if (App.State.hardwareAutoUpdateEnabled) {
                 this.startAutoUpdate();
-                this.fetchAndDisplayStatus(); // Fetch immediately when re-enabled
+                this.fetchAndDisplayStatus();
             } else {
                 this.stopAutoUpdate();
             }
         },
         async manualRefresh() {
             await this.fetchAndDisplayStatus();
-            if (App.State.hardwareAutoUpdateEnabled) { // Only reset timer if auto-update is on
-                this.startAutoUpdate(); // This will clear and restart intervals
-            }
-        }
+            if (App.State.hardwareAutoUpdateEnabled) this.startAutoUpdate();
+        },
     },
 
-    StatusManager: { // General orchestrator
-        async updateAll() {
-            // No auto-update logic here, just initial fetch or general refresh trigger
-            await App.HardwareStatusManager.fetchAndDisplayStatus();
-        }
-    },
-
-    PortInfoManager: { // (Same as previous, just ensure it's called correctly)
+    PortInfoManager: {
         display(portType, statusData) {
             const contentEl = App.UI.portInfoContent;
             contentEl.innerHTML = '';
@@ -302,42 +271,119 @@ const App = {
                 configContainer.appendChild(sttyPre);
                 contentEl.appendChild(configContainer);
             } else if (portType === 'NETWORK') {
-                contentEl.innerHTML += `<p class="text-muted mt-auto">Información Puerto Red (Aún no implementado)</p>`;
+                contentEl.innerHTML += '<p class="text-muted mt-auto">Información Puerto Red (Aún no implementado)</p>';
             } else if (portType === 'USB') {
-                contentEl.innerHTML += `<p class="text-muted mt-auto">Información Puerto USB (Aún no implementado)</p>`;
+                contentEl.innerHTML += '<p class="text-muted mt-auto">Información Puerto USB (Aún no implementado)</p>';
             } else {
                 contentEl.innerHTML += `<p class="text-muted mt-auto">No hay información detallada del puerto para ${portType || 'desconocido'}.</p>`;
             }
-        }
+        },
     },
-    LogManager: {
-        async fetchAndDisplaySystemLogs() {
-            App.UI.logOutputSystem.textContent = 'Obteniendo registros del sistema...';
-            App.UI.btnViewFullLogSystem.style.display = 'none';
-            const journal = App.UI.selectJournalSystem.value;
-            const timeRange = App.UI.selectTimeRangeSystem.value;
+
+    ServiceLogsManager: {
+        async fetchAndDisplay() {
+            const pre = App.UI.logOutputService;
+            const expandBtn = App.UI.btnExpandServiceLogs;
+            const refreshBtn = App.UI.btnRefreshServiceLogs;
+            const service = App.UI.selectLogService.value;
+            pre.textContent = `Obteniendo registros de ${service}...`;
+            expandBtn.style.display = 'none';
+            refreshBtn.disabled = true;
             try {
-                App.State.fullLogContentSystem = await App.API.fetchLogs(journal, timeRange);
-                App.UI.logOutputSystem.textContent = App.State.fullLogContentSystem;
-                App.UI.btnViewFullLogSystem.style.display = 'inline-block';
-            } catch (error) {
-                App.UI.logOutputSystem.textContent = `Error al obtener registros: ${error.message}`;
+                const logs = await App.API.fetchServiceLogs(service);
+                App.State.fullLogContentService = logs;
+                pre.textContent = logs;
+                expandBtn.style.display = 'inline-block';
+            } catch (e) {
+                pre.textContent = `Error: ${e.message}`;
+                App.State.fullLogContentService = '';
+            } finally {
+                refreshBtn.disabled = false;
             }
-        }
+        },
+        expandLogs() {
+            const service = App.UI.selectLogService ? App.UI.selectLogService.value : 'servicio';
+            App.ModalManager.showContent(
+                `Registros: ${service}`,
+                App.State.fullLogContentService || '[Sin contenido]',
+                true
+            );
+        },
     },
+
+    ServicesStatusManager: {
+        _render(services) {
+            const grid = App.UI.servicesStatusGrid;
+            if (!services || !services.length) {
+                grid.innerHTML = '<p class="text-muted small">No se encontraron servicios.</p>';
+                return;
+            }
+            grid.innerHTML = services.map(svc => {
+                const dotClass = svc.active ? 'status-green'
+                    : (svc.status === 'unknown' || svc.status === 'not found') ? 'status-gray'
+                    : 'status-red';
+                const typeBadge = svc.type === 'docker'
+                    ? '<span class="badge bg-info text-dark ms-1" style="font-size:0.65rem;">docker</span>'
+                    : '<span class="badge bg-secondary ms-1" style="font-size:0.65rem;">systemd</span>';
+                return `<div class="service-status-item">
+                    <span class="status-dot ${dotClass}"></span>
+                    <span class="service-item-name">${svc.name}</span>
+                    ${typeBadge}
+                    <span class="service-item-status">${svc.status}</span>
+                </div>`;
+            }).join('');
+            App.UI.servicesLastUpdate.textContent = `Actualizado: ${new Date().toLocaleTimeString()}`;
+        },
+        async fetchAndDisplay() {
+            const grid = App.UI.servicesStatusGrid;
+            const btn = App.UI.btnRefreshServices;
+            btn.disabled = true;
+            grid.innerHTML = '<p class="text-muted small">Actualizando...</p>';
+            try {
+                const data = await App.API.getServicesStatus();
+                if (data) {
+                    this._render(data.services);
+                } else {
+                    grid.innerHTML = '<p class="text-danger small">Error al obtener estado de servicios.</p>';
+                }
+            } catch (e) {
+                grid.innerHTML = `<p class="text-danger small">Error: ${e.message}</p>`;
+            } finally {
+                btn.disabled = false;
+            }
+        },
+    },
+
     ModalManager: {
-        showConfirmation(message, actionCallback) { App.UI.modalMessage.textContent = message; App.State.currentModalAction = actionCallback; App.UI.confirmationModal.style.display = 'block'; },
-        hideConfirmation() { App.UI.confirmationModal.style.display = 'none'; App.State.currentModalAction = null; },
-        showContent(title, content) { App.UI.contentModalTitle.textContent = title; App.UI.contentModalBody.textContent = content; App.UI.contentModal.style.display = 'block'; },
-        hideContent() { App.UI.contentModal.style.display = 'none'; }
+        showConfirmation(message, actionCallback) {
+            App.UI.modalMessage.textContent = message;
+            App.State.currentModalAction = actionCallback;
+            App.UI.confirmationModal.style.display = 'block';
+        },
+        hideConfirmation() {
+            App.UI.confirmationModal.style.display = 'none';
+            App.State.currentModalAction = null;
+        },
+        showContent(title, content, wide = false) {
+            App.UI.contentModalTitle.textContent = title;
+            App.UI.contentModalBody.textContent = content;
+            App.UI.contentModal.style.display = 'block';
+            App.UI.contentModal.querySelector('.modal-custom-content').classList.toggle('modal-xl-custom', wide);
+            App.UI.contentModalBody.classList.toggle('service-log-expanded', wide);
+        },
+        hideContent() {
+            App.UI.contentModal.style.display = 'none';
+            App.UI.contentModal.querySelector('.modal-custom-content').classList.remove('modal-xl-custom');
+            App.UI.contentModalBody.classList.remove('service-log-expanded');
+        },
     },
+
     ActionHandler: {
         async printDummyTicket() {
             App.UI.actionStatus.textContent = 'Imprimiendo ticket de prueba...';
             const success = await App.API.printTicket();
             App.UI.actionStatus.textContent = success ? 'Ticket de prueba impreso correctamente.' : 'Error al imprimir ticket de prueba.';
             App.UI.actionStatus.className = `mt-3 small ${success ? 'text-success' : 'text-danger'}`;
-            // No es necesario llamar a updateAll si solo afecta el estado de la impresora que ya se actualiza
         },
         async openCashDrawer() {
             App.UI.actionStatus.textContent = 'Abriendo cajón...';
@@ -346,18 +392,21 @@ const App = {
             App.UI.actionStatus.className = `mt-3 small ${success ? 'text-success' : 'text-danger'}`;
         },
         async shutdownServer() {
-            App.ModalManager.hideConfirmation(); App.UI.actionStatus.textContent = 'Enviando comando de apagado...';
+            App.ModalManager.hideConfirmation();
+            App.UI.actionStatus.textContent = 'Enviando comando de apagado...';
             const success = await App.API.shutdown();
             App.UI.actionStatus.textContent = success ? 'Comando de apagado enviado.' : 'Error al enviar comando de apagado.';
             App.UI.actionStatus.className = `mt-3 small ${success ? 'text-info' : 'text-danger'}`;
         },
         async rebootServer() {
-            App.ModalManager.hideConfirmation(); App.UI.actionStatus.textContent = 'Enviando comando de reinicio...';
+            App.ModalManager.hideConfirmation();
+            App.UI.actionStatus.textContent = 'Enviando comando de reinicio...';
             const success = await App.API.reboot();
             App.UI.actionStatus.textContent = success ? 'Comando de reinicio enviado.' : 'Error al enviar comando de reinicio.';
             App.UI.actionStatus.className = `mt-3 small ${success ? 'text-info' : 'text-danger'}`;
-        }
+        },
     },
+
     init() {
         // Hardware Tab
         App.UI.autoUpdateHardwareSwitch.addEventListener('change', App.HardwareStatusManager.toggleAutoUpdate.bind(App.HardwareStatusManager));
@@ -365,25 +414,32 @@ const App = {
         App.UI.btnPrintDummy.addEventListener('click', App.ActionHandler.printDummyTicket);
         App.UI.btnOpenCashDrawer.addEventListener('click', App.ActionHandler.openCashDrawer);
 
+        // Service Logs Panel
+        App.UI.btnRefreshServiceLogs.addEventListener('click', () => App.ServiceLogsManager.fetchAndDisplay());
+        App.UI.btnExpandServiceLogs.addEventListener('click', () => App.ServiceLogsManager.expandLogs());
 
-        // Global
+        // Services Status Panel
+        App.UI.btnRefreshServices.addEventListener('click', () => App.ServicesStatusManager.fetchAndDisplay());
+
+        // Global modals
         App.UI.btnShutdown.addEventListener('click', () => App.ModalManager.showConfirmation('¿Está seguro que desea apagar el servidor?', App.ActionHandler.shutdownServer));
         App.UI.btnReboot.addEventListener('click', () => App.ModalManager.showConfirmation('¿Está seguro que desea reiniciar el servidor?', App.ActionHandler.rebootServer));
-
         App.UI.modalConfirmBtn.addEventListener('click', () => { if (App.State.currentModalAction) App.State.currentModalAction(); });
         App.UI.modalCancelBtn.addEventListener('click', App.ModalManager.hideConfirmation);
         App.UI.contentModalCloseBtn.addEventListener('click', App.ModalManager.hideContent);
         window.onclick = (event) => {
-            if (event.target == App.UI.confirmationModal) App.ModalManager.hideConfirmation();
-            if (event.target == App.UI.contentModal) App.ModalManager.hideContent();
+            if (event.target === App.UI.confirmationModal) App.ModalManager.hideConfirmation();
+            if (event.target === App.UI.contentModal) App.ModalManager.hideContent();
         };
 
-        // Initial Load & Start Auto-Update for Hardware
-        App.HardwareStatusManager.fetchAndDisplayStatus(); // Initial fetch for hardware
-        App.HardwareStatusManager.startAutoUpdate(); // Start auto-update cycle for hardware
+        // Initial load
+        App.HardwareStatusManager.fetchAndDisplayStatus();
+        App.HardwareStatusManager.startAutoUpdate();
+        App.ServicesStatusManager.fetchAndDisplay();
 
         App.UI.portInfoContent.innerHTML = '<p class="text-muted">Obteniendo información del puerto...</p>';
-        App.UI.actionStatus.textContent = ''; // Clear initial messages
-    }
+        App.UI.actionStatus.textContent = '';
+    },
 };
+
 document.addEventListener('DOMContentLoaded', App.init);

@@ -1,12 +1,17 @@
-<div class="col-lg-4 d-flex flex-column">
-    <div class="card h-100">
+<div class="col-12">
+    <div class="card">
         <div class="card-body">
-            <h2 class="card-title h5 mb-3">Estado de Servicios</h2>
-            <div class="service-status-container">
-                <p><span id="dockerStatusDot" class="status-dot status-gray"></span>Servicio Docker: <strong
-                        id="dockerStatusText">Desconocido</strong></p>
-                <p><span id="hwProxyStatusDot" class="status-dot status-gray"></span>Servicio hw_proxy: <strong
-                        id="hwProxyStatusText">Desconocido</strong></p>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="card-title h5 mb-0">Estado de Servicios</h2>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="servicesLastUpdate" class="text-muted small"></span>
+                    <button id="btnRefreshServices" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-sync-alt me-1"></i>Actualizar
+                    </button>
+                </div>
+            </div>
+            <div id="servicesStatusGrid" class="d-flex flex-wrap gap-2">
+                <p class="text-muted small">Cargando estado de servicios...</p>
             </div>
         </div>
     </div>
