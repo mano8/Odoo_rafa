@@ -24,7 +24,7 @@ declare -A SERVICES_MAP=(
 
 declare -A SERVICE_UID_MAP=(
   [fiesta_odoo]=100
-  [fiesta_db]=0
+  [fiesta_db]=70
   [traefik]=0
 )
 

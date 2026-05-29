@@ -61,7 +61,7 @@ http:
     hw-proxy-service:
       loadBalancer:
         servers:
-          - url: "http://192.168.1.146:9002"
+          - url: "http://10.254.254.1:9002"
     hw-status-service:
       loadBalancer:
         servers:

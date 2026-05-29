@@ -137,10 +137,9 @@ install-sudoers:
 # ──────────────────────────────────────────────────────────────────────────────
 install-firewall:
 	@echo "[install-firewall] Configuring ufw rules..."
-	@sudo ufw allow from 192.168.1.0/24 to any port 9002 comment 'hw_proxy LAN'
 	@sudo ufw allow from 192.168.1.0/24 to any port 9000 comment 'Odoo LAN'
 	@sudo ufw allow from 192.168.1.0/24 to any port 9001 comment 'hw_status LAN'
-	@sudo ufw deny 9002 comment 'hw_proxy block non-LAN'
+	@sudo ufw allow from 172.16.0.0/12 to 10.254.254.1 port 9002 comment 'hw_proxy Docker mgmt only'
 	@sudo ufw --force enable
 	@sudo ufw status verbose
 	@echo "[install-firewall] Done."

@@ -7,7 +7,7 @@ User=hw_user
 Group=hw_user
 WorkingDirectory=/opt/hw_proxy
 Environment="PATH=/opt/hw_proxy/.venv/bin"
-ExecStart=/opt/hw_proxy/.venv/bin/uvicorn hw_proxy.main:app --host 0.0.0.0 --port 9002 --workers 1 --log-level info
+ExecStart=/opt/hw_proxy/.venv/bin/uvicorn hw_proxy.main:app --host 10.254.254.1 --port 9002 --workers 1 --log-level info
 Restart=always
 RestartSec=5s
 StandardOutput=journal
