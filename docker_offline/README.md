@@ -16,6 +16,7 @@ the binary artifacts (Docker image tarballs + Python wheel caches) before going 
 ```text
 /opt/Odoo_rafa/
 ├── docker_offline/                 ← run Makefiles from here
+│   ├── Makefile                    ← main entry-point: vendors everything in one command
 │   ├── Makefile.prepare            ← pull upstream images, build fat base, save to *.tar
 │   ├── Makefile.update             ← full prepare + load into local Docker daemon
 │   ├── Makefile.wheels             ← download Python wheels for all services
@@ -46,39 +47,29 @@ the binary artifacts (Docker image tarballs + Python wheel caches) before going 
 
 ## Workflow A — Prepare on an online machine, deploy offline
 
-### Step 1 · Vendor Docker images (online machine)
+### Step 1 · Vendor everything (online machine)
 
 ```bash
 cd /opt/Odoo_rafa/docker_offline
-make -f Makefile.prepare
+make
 ```
 
-Pulls `python:3.11-slim`, `traefik:v3.4.0`, `postgres:13.21-alpine3.20`, `odoo:18.0`,
-`prom/prometheus:v3.4.0`, `grafana/grafana:12.0.1`, builds `my-python-3.11-fat:latest`,
-then saves all seven to `*.tar` files in this directory.
+Downloads all Python wheels and pulls/builds/saves all Docker images to `*.tar` in one shot.
 
-### Step 2 · Vendor Python wheels (online machine)
-
-```bash
-cd /opt/Odoo_rafa/docker_offline
-
-make -f Makefile.wheels prod      # hw_status production → hw_status/wheelhouse/
-make -f Makefile.wheels dev-all   # hw_status + hw_proxy dev → both wheelhouse_dev/
-```
-
-### Step 3 · Transfer to the offline host
+### Step 2 · Transfer to the offline host
 
 Copy the full repo (or at minimum `docker_offline/*.tar` and the three `wheelhouse*` dirs)
 to the target machine.
 
-### Step 4 · Load images and start the stack (offline host)
+### Step 3 · Load images and start the stack (offline host)
 
 ```bash
 cd /opt/Odoo_rafa/docker_offline
-make -f Makefile.update load      # loads all *.tar into the local Docker daemon
+make load
 ```
 
-Then start the stack:
+`make load` vendors everything (no-op if already done) then loads all `*.tar` into the
+local Docker daemon. Start the stack afterwards:
 
 ```bash
 cd /opt/Odoo_rafa/docker-compose/odoo_dev_offline
@@ -89,16 +80,26 @@ docker compose up -d
 
 ## Workflow B — Online machine only (no air-gap)
 
-Run the full prepare + load in one shot:
+Vendor and load in one shot:
 
 ```bash
 cd /opt/Odoo_rafa/docker_offline
-make -f Makefile.wheels prod
-make -f Makefile.wheels dev-all
-make -f Makefile.update           # pull → build → save → load
+make load
 ```
 
 Then start the stack normally.
+
+---
+
+## Makefile targets reference
+
+| Target | What it does |
+| ------ | ------------ |
+| `make` | Vendor wheels + save images (no load) |
+| `make load` | Vendor wheels + save images + load into Docker |
+| `make wheels` | Download Python wheels only |
+| `make images` | Pull/build/save Docker images only |
+| `make clean` | Remove all `*.tar` files and wheelhouse dirs |
 
 ---
 
