@@ -10,18 +10,24 @@ When you need to run the entire **Fiesta POS** stack with **no Internet** (e.g. 
 
 ## Repository Layout
 
-```
+```text
 /opt/Odoo_rafa/
 ├── docker_offline/             ← offline-prep artifacts & Makefiles
 │   ├── Makefile.prepare        ← pull → build → save (tarballs)
 │   ├── Makefile.update         ← save → load → (optional compose up)
 │   ├── Makefile.wheels         ← generate wheelhouse dirs
+│   ├── python-3.11-slim.tar
 │   ├── traefik_v3.4.0.tar
 │   ├── postgres_13.21-alpine3.20.tar
 │   ├── odoo_18.0.tar
 │   ├── python-3.11-fat.tar
 │   ├── prometheus_v3.4.0.tar
 │   └── grafana_12.0.1.tar
+├── hw_proxy/
+│   ├── wheelhouse_dev/         ← dev wheels (in `.gitignore`)
+│   └── hw_proxy/
+│       ├── requirements-docker-dev.txt
+│       └── Dockerfile.offline.dev  ← builds using local wheelhouse (dev)
 └── hw_status/
     ├── wheelhouse/             ← prod wheels (in `.gitignore`)
     ├── wheelhouse_dev/         ← dev wheels (in `.gitignore`)
@@ -104,22 +110,25 @@ make -f Makefile.update
 ```bash
 cd /opt/Odoo_rafa/docker_offline
 
+docker pull python:3.11-slim
 docker pull traefik:v3.4.0
 docker pull postgres:13.21-alpine3.20
 docker pull odoo:18.0
 docker pull prom/prometheus:v3.4.0
 docker pull grafana/grafana:12.0.1
 
-docker build -f ../hw_status/FatDockerfile -t python-3.11-fat:latest ../hw_status
+docker build -f ../hw_status/hw_status/Dockerfile.fat -t my-python-3.11-fat:latest ../hw_status/hw_status
 
+docker save python:3.11-slim            -o python-3.11-slim.tar
 docker save traefik:v3.4.0              -o traefik_v3.4.0.tar
 docker save postgres:13.21-alpine3.20   -o postgres_13.21-alpine3.20.tar
 docker save odoo:18.0                   -o odoo_18.0.tar
-docker save python-3.11-fat:latest      -o python-3.11-fat.tar
+docker save my-python-3.11-fat:latest   -o python-3.11-fat.tar
 docker save prom/prometheus:v3.4.0      -o prometheus_v3.4.0.tar
 docker save grafana/grafana:12.0.1      -o grafana_12.0.1.tar
 
 # On offline host:
+docker load -i python-3.11-slim.tar
 docker load -i traefik_v3.4.0.tar
 docker load -i postgres_13.21-alpine3.20.tar
 docker load -i odoo_18.0.tar
@@ -128,16 +137,17 @@ docker load -i prometheus_v3.4.0.tar
 docker load -i grafana_12.0.1.tar
 ```
 
-### Python wheels for `hw_status`
+### Python wheels
 
 ```bash
-cd /opt/Odoo_rafa/hw_status
+# hw_status — production wheels:
+pip download --dest hw_status/wheelhouse     -r hw_status/hw_status/requirements-docker.txt
 
-# Production wheels:
-pip download --dest wheelhouse     -r requirements-docker.txt
+# hw_status — development wheels:
+pip download --dest hw_status/wheelhouse_dev -r hw_status/hw_status/requirements-docker-dev.txt
 
-# Development wheels:
-pip download --dest wheelhouse_dev -r requirements-docker-dev.txt
+# hw_proxy — development wheels:
+pip download --dest hw_proxy/wheelhouse_dev  -r hw_proxy/hw_proxy/requirements-docker-dev.txt
 ```
 
 ---
