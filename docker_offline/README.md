@@ -1,115 +1,117 @@
 # Offline Mode
 
-When you need to run the entire **Fiesta POS** stack with **no Internet** (e.g. in an air-gapped environment), you must:
+Enables running the entire **Fiesta POS** stack with **no Internet** (air-gapped environment).
+The repo already ships offline-capable Dockerfiles and Compose configs — you only need to vendor
+the binary artifacts (Docker image tarballs + Python wheel caches) before going offline.
 
-1. **Vendor all Docker images** locally (Traefik, Postgres, Odoo, Python-fat)
-2. **Cache all Python wheels** in `hw_status/wheelhouse/` and `hw_status/wheelhouse_dev/`
-3. **Configure** Compose and Dockerfiles to install **only** from those local artifacts
+**What to vendor:**
+
+1. **Docker image tarballs** — saved in `docker_offline/*.tar` (gitignored)
+2. **Python wheels** — cached in `hw_status/wheelhouse/`, `hw_status/wheelhouse_dev/`, and `hw_proxy/wheelhouse_dev/` (gitignored)
 
 ---
 
-## Repository Layout
+## Repository layout
 
 ```text
 /opt/Odoo_rafa/
-├── docker_offline/             ← offline-prep artifacts & Makefiles
-│   ├── Makefile.prepare        ← pull → build → save (tarballs)
-│   ├── Makefile.update         ← save → load → (optional compose up)
-│   ├── Makefile.wheels         ← generate wheelhouse dirs
-│   ├── python-3.11-slim.tar
+├── docker_offline/                 ← run Makefiles from here
+│   ├── Makefile.prepare            ← pull upstream images, build fat base, save to *.tar
+│   ├── Makefile.update             ← full prepare + load into local Docker daemon
+│   ├── Makefile.wheels             ← download Python wheels for all services
+│   ├── python-3.11-slim.tar        ← base image for offline.dev Dockerfiles
 │   ├── traefik_v3.4.0.tar
 │   ├── postgres_13.21-alpine3.20.tar
 │   ├── odoo_18.0.tar
-│   ├── python-3.11-fat.tar
+│   ├── python-3.11-fat.tar         ← custom fat base for hw_status prod
 │   ├── prometheus_v3.4.0.tar
 │   └── grafana_12.0.1.tar
 ├── hw_proxy/
-│   ├── wheelhouse_dev/         ← dev wheels (in `.gitignore`)
+│   ├── wheelhouse_dev/             ← dev wheels (gitignored)
 │   └── hw_proxy/
 │       ├── requirements-docker-dev.txt
-│       └── Dockerfile.offline.dev  ← builds using local wheelhouse (dev)
+│       └── Dockerfile.offline.dev
 └── hw_status/
-    ├── wheelhouse/             ← prod wheels (in `.gitignore`)
-    ├── wheelhouse_dev/         ← dev wheels (in `.gitignore`)
+    ├── wheelhouse/                 ← prod wheels (gitignored)
+    ├── wheelhouse_dev/             ← dev wheels (gitignored)
     └── hw_status/
         ├── requirements-docker.txt
         ├── requirements-docker-dev.txt
-        ├── Dockerfile.fat          ← Vendor Docker hw_status base image
-        ├── Dockerfile.offline.dev  ← builds using local wheelhouses (dev)
-        └── Dockerfile.offline      ← builds using local wheelhouses (prod)
+        ├── Dockerfile.fat          ← builds the my-python-3.11-fat base image
+        ├── Dockerfile.offline.dev  ← dev build using local wheelhouse
+        └── Dockerfile.offline      ← prod build using local wheelhouse
 ```
 
 ---
 
-## 1. Prepare offline artifacts (online workstation)
+## Workflow A — Prepare on an online machine, deploy offline
 
-1. **Docker images**
-
-   ```bash
-   cd /opt/Odoo_rafa/docker_offline
-   make -f Makefile.prepare
-   ```
-
-   * Pulls Traefik, Postgres, Odoo, builds `python-3.11-fat`, and saves them to `*.tar`
-
-2. **Python wheels**
-
-   ```bash
-   cd /opt/Odoo_rafa/docker_offline
-   make -f Makefile.wheels prod     # fills wheelhouse/
-   # And/Or
-   make -f Makefile.wheels dev      # fills wheelhouse_dev/
-   ```
-
----
-
-## 2. Load & run offline (air-gapped host)
-
-Copy the entire `/opt/Odoo_rafa/` directory (including `docker_offline/*.tar` and both `wheelhouse*`) to the target host, then:
+### Step 1 · Vendor Docker images (online machine)
 
 ```bash
 cd /opt/Odoo_rafa/docker_offline
-make -f Makefile.update load
+make -f Makefile.prepare
 ```
 
-`make -f Makefile.update load` does:
+Pulls `python:3.11-slim`, `traefik:v3.4.0`, `postgres:13.21-alpine3.20`, `odoo:18.0`,
+`prom/prometheus:v3.4.0`, `grafana/grafana:12.0.1`, builds `my-python-3.11-fat:latest`,
+then saves all seven to `*.tar` files in this directory.
 
-1. Loads each `*.tar` via `docker load -i ...`
+### Step 2 · Vendor Python wheels (online machine)
+
+```bash
+cd /opt/Odoo_rafa/docker_offline
+
+make -f Makefile.wheels prod      # hw_status production → hw_status/wheelhouse/
+make -f Makefile.wheels dev-all   # hw_status + hw_proxy dev → both wheelhouse_dev/
+```
+
+### Step 3 · Transfer to the offline host
+
+Copy the full repo (or at minimum `docker_offline/*.tar` and the three `wheelhouse*` dirs)
+to the target machine.
+
+### Step 4 · Load images and start the stack (offline host)
+
+```bash
+cd /opt/Odoo_rafa/docker_offline
+make -f Makefile.update load      # loads all *.tar into the local Docker daemon
+```
+
+Then start the stack:
+
+```bash
+cd /opt/Odoo_rafa/docker-compose/odoo_dev_offline
+docker compose up -d
+```
 
 ---
 
-## 3. Run with Internet (online workstation)
+## Workflow B — Online machine only (no air-gap)
 
-You can also skip copying `.tar` and wheels manually if you're online:
+Run the full prepare + load in one shot:
 
 ```bash
-# Python wheels
 cd /opt/Odoo_rafa/docker_offline
 make -f Makefile.wheels prod
-# And/Or
-make -f Makefile.wheels dev
-
-# Docker images
-cd /opt/Odoo_rafa/docker_offline
-make -f Makefile.update
+make -f Makefile.wheels dev-all
+make -f Makefile.update           # pull → build → save → load
 ```
 
-`make -f Makefile.update` does:
-
-1. Pull images
-2. Build `python-3.11-fat`
-3. Save all to `.tar`
-4. Load into Docker
+Then start the stack normally.
 
 ---
 
-## 4. Manual fallback commands
+## Manual fallback commands
+
+Use these if `make` is unavailable on the host.
 
 ### Docker images
 
 ```bash
 cd /opt/Odoo_rafa/docker_offline
 
+# Pull upstream images
 docker pull python:3.11-slim
 docker pull traefik:v3.4.0
 docker pull postgres:13.21-alpine3.20
@@ -117,8 +119,13 @@ docker pull odoo:18.0
 docker pull prom/prometheus:v3.4.0
 docker pull grafana/grafana:12.0.1
 
-docker build -f ../hw_status/hw_status/Dockerfile.fat -t my-python-3.11-fat:latest ../hw_status/hw_status
+# Build custom fat base
+docker build \
+  -f ../hw_status/hw_status/Dockerfile.fat \
+  -t my-python-3.11-fat:latest \
+  ../hw_status/hw_status
 
+# Save to tarballs
 docker save python:3.11-slim            -o python-3.11-slim.tar
 docker save traefik:v3.4.0              -o traefik_v3.4.0.tar
 docker save postgres:13.21-alpine3.20   -o postgres_13.21-alpine3.20.tar
@@ -127,7 +134,7 @@ docker save my-python-3.11-fat:latest   -o python-3.11-fat.tar
 docker save prom/prometheus:v3.4.0      -o prometheus_v3.4.0.tar
 docker save grafana/grafana:12.0.1      -o grafana_12.0.1.tar
 
-# On offline host:
+# Load on offline host
 docker load -i python-3.11-slim.tar
 docker load -i traefik_v3.4.0.tar
 docker load -i postgres_13.21-alpine3.20.tar
@@ -139,17 +146,27 @@ docker load -i grafana_12.0.1.tar
 
 ### Python wheels
 
+Run from repo root. The `--only-binary=:all: --python-version 3.11` flags are required —
+without them pip may download source packages that cannot be compiled offline.
+
 ```bash
-# hw_status — production wheels:
-pip download --dest hw_status/wheelhouse     -r hw_status/hw_status/requirements-docker.txt
+# hw_status — production
+pip download --only-binary=:all: --python-version 3.11 \
+  --dest hw_status/wheelhouse \
+  -r hw_status/hw_status/requirements-docker.txt
 
-# hw_status — development wheels:
-pip download --dest hw_status/wheelhouse_dev -r hw_status/hw_status/requirements-docker-dev.txt
+# hw_status — development
+pip download --only-binary=:all: --python-version 3.11 \
+  --dest hw_status/wheelhouse_dev \
+  -r hw_status/hw_status/requirements-docker-dev.txt
 
-# hw_proxy — development wheels:
-pip download --dest hw_proxy/wheelhouse_dev  -r hw_proxy/hw_proxy/requirements-docker-dev.txt
+# hw_proxy — development
+pip download --only-binary=:all: --python-version 3.11 \
+  --dest hw_proxy/wheelhouse_dev \
+  -r hw_proxy/hw_proxy/requirements-docker-dev.txt
 ```
 
 ---
 
-With this setup, **every** piece (OS packages, images, Python libs) lives in your repo and can be built, loaded, and run **without** touching the Internet.
+With this setup every artifact (Docker images, Python packages) is vendored locally and the
+stack builds and runs without touching the Internet.
