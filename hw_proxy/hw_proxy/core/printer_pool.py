@@ -121,11 +121,6 @@ class PrinterPool:
             img.mode,
             h.device.print_width if h.device else None,
         )
-        # DEBUG: save source image to inspect horizontal line artifacts
-        try:
-            img.save("/tmp/receipt_debug.png")
-        except Exception:
-            pass
         # Crop blank rows at the top — Odoo renders the receipt HTML with CSS
         # padding that produces a white band before the header content.
         bbox = ImageOps.invert(img.convert("L")).getbbox()
@@ -157,18 +152,10 @@ class PrinterPool:
         d.cut(feed=True)
         output = d.output
         if image_conf.get("impl") == "bitImageColumn":
-            # python-escpos 3.1 hardcodes ESC 3 n=16 before bitImageColumn strips.
-            # Replace ONLY the first occurrence — the actual ESC 3 command at the
-            # start of the bitImageColumn output.  A second coincidental \x1b\x33\x10
-            # byte sequence can appear inside the column data and must NOT be patched.
-            # n=24: 24 × (1/203") = strip height for 203 DPI (24 dots/203 DPI = exact).
-            esc3_default = b"\x1b\x33\x10"
-            esc3_patched = b"\x1b\x33\x18"  # n=24
-            if esc3_default in output:
-                output = output.replace(esc3_default, esc3_patched, 1)
-                logger.info(
-                    "[PrinterPool] ESC3 patch n=16→24 applied  output_len=%d", len(output)
-                )
+            # python-escpos 3.1 hardcodes ESC 3 n=16; patch only the first occurrence
+            # (the actual ESC 3 command) — coincidental matches in column data must not
+            # be touched.  n=21 ≈ 24/203 × 180: closest integer for 1/180" motion unit.
+            output = output.replace(b"\x1b\x33\x10", b"\x1b\x33\x15", 1)
         # _CMD_INIT (ESC @) resets the printer's ESC/POS command parser to a
         # known state before the image data so no stale mid-command state
         # from a previous job corrupts the image stream.
