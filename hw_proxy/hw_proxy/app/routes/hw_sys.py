@@ -3,6 +3,7 @@ Api routes for hw_sys module
 """
 import asyncio
 import logging
+import os
 import subprocess
 import psutil
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -27,10 +28,15 @@ _JOURNAL_PRIORITY = {"error": "err", "warning": "warning", "info": "info"}
 _DOCKER_IMPORTANT = ("error", "warn", "critical", "fatal", "exception", "traceback")
 
 
+_SYS_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+
 def _run_cmd(cmd: list[str], timeout: int = 10) -> tuple[str, str]:
     """Run a subprocess and return (stdout, stderr). Never raises."""
+    env = os.environ.copy()
+    env["PATH"] = _SYS_PATH
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env)
         return r.stdout, r.stderr
     except subprocess.TimeoutExpired:
         return "", "Command timed out"
