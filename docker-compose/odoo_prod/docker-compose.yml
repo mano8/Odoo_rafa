@@ -85,7 +85,7 @@ services:
         fi
       '
     extra_hosts:
-      - "fonts.odoo.com:192.168.1.146"
+      - "fonts.odoo.com:${HOST_IP:-192.168.1.146}"
     logging:
       driver: "journald"
     depends_on:

@@ -38,28 +38,24 @@ id hw_user
 
 ---
 
-## 2. Firewall — Restrict `hw_proxy` Port (9002)
+## 2. Firewall — `hw_proxy` Port (9002)
 
-The `hw_proxy` service binds to `0.0.0.0:9002`, which means it is reachable on all host interfaces.
-Restrict it to your trusted LAN subnet with `ufw`:
+`hw_proxy` binds exclusively to `10.254.254.1:9002` (the `docker0-mgmt` management dummy
+interface). It is structurally unreachable from the LAN or any external network — no
+firewall rule is needed to protect it.
+
+Traefik (running in Docker) reaches it via the same management interface. POS clients
+never connect to port 9002 directly; they go through Traefik on port 9001 (HTTPS).
+
+Restrict the Traefik public ports to LAN with `ufw`:
 
 ```bash
-# Allow only LAN access to the hw_proxy port
-sudo ufw allow from 192.168.1.0/24 to any port 9002
-
-# Block everything else on that port
-sudo ufw deny 9002
-
-# Ensure ufw is active
+sudo ufw allow from 192.168.1.0/24 to any port 9000 comment 'Odoo LAN'
+sudo ufw allow from 192.168.1.0/24 to any port 9001 comment 'hw_status/hw_proxy LAN'
+# Allow Docker bridge networks to reach hw_proxy on the management interface
+sudo ufw allow from 172.16.0.0/12 to 10.254.254.1 port 9002 comment 'hw_proxy Docker mgmt only'
 sudo ufw enable
 sudo ufw status verbose
-```
-
-Optionally restrict the Traefik public ports to LAN as well:
-
-```bash
-sudo ufw allow from 192.168.1.0/24 to any port 9000
-sudo ufw allow from 192.168.1.0/24 to any port 9001
 ```
 
 > Port 8080 (Traefik dashboard) should be accessible only from `127.0.0.1` or a trusted admin host.

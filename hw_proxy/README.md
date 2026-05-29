@@ -31,7 +31,7 @@ This service exposes hardware and system control endpoints used by the **Odoo Lo
 In the main stack, **Traefik** proxies HTTPS requests from Odoo to the host’s `hw_proxy` service:
 
 ```bash
-https://traefik-client.local:9001/hw_proxy  →  http://192.168.1.146:9002
+https://traefik-client.local:9001/hw_proxy  →  http://10.254.254.1:9002
 ```
 
 This setup allows Odoo to send printing or control commands securely to the host while maintaining direct hardware access.

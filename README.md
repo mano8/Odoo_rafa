@@ -57,7 +57,7 @@ All components run locally in Docker containers, except for the optional **`hw_p
 
    * `/` → `fiesta_odoo:8069` (Odoo)
    * `/hw_status` → `hw_status_service:8015`
-   * `/hw_proxy` → external host `192.168.1.146:9002` (via Traefik TLS termination on port `9001`)
+   * `/hw_proxy` → host service `10.254.254.1:9002` (management interface, via Traefik TLS termination on port `9001`)
 2. **Odoo POS** communicates securely with `hw_proxy` for direct printing.
 3. **hw_status_service** offers a browser dashboard for printer/system monitoring and test printing.
 4. **PostgreSQL** stores Odoo data; all services run locally under the `odoo_network`.

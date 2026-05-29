@@ -8,15 +8,10 @@ services:
       - "9000:9000"   # odoo entryPoint
       - "9001:9001"   # hw_status entryPoint
     volumes:
-      - ../../docker/certs/ca.pem:/etc/traefik/docker_certs/ca.pem:ro
-      - ../../docker/certs/client-cert.pem:/etc/traefik/docker_certs/client-cert.pem:ro
-      - ../../docker/certs/client-key.pem:/etc/traefik/docker_certs/client-key.pem:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic_conf.yml:/etc/traefik/dynamic_conf.yml:ro
       - ./traefik/certs:/etc/traefik/certs:ro
       - ./traefik/acme.json:/etc/traefik/acme.json
-    environment:
-      - DOCKER_API_VERSION=1.43
     logging:
       driver: "journald"
     security_opt:

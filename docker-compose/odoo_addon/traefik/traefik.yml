@@ -11,13 +11,6 @@ hw:
   insecure: true
 
 providers:
-  docker:
-    exposedByDefault: false
-    endpoint: "tcp://10.254.254.1:2376"
-    tls:
-      ca:   "/etc/traefik/docker_certs/ca.pem"
-      cert: "/etc/traefik/docker_certs/client-cert.pem"
-      key:  "/etc/traefik/docker_certs/client-key.pem"
   file:
     filename: /etc/traefik/dynamic_conf.yml
     watch: true

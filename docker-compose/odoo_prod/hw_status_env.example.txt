@@ -25,5 +25,5 @@ LOG_LEVEL="Info"
 # HW_PROXY_URL: URL the hw_status frontend injects for browser → hw_proxy calls.
 # MUST use the Traefik HTTPS entry point (port 9001) — NOT hw_proxy's direct
 # HTTP port 9002 — because browsers block mixed HTTP requests from HTTPS pages.
-# Traefik routes https://...:9001/hw_proxy/* → http://192.168.1.146:9002.
+# Traefik routes https://...:9001/hw_proxy/* → http://10.254.254.1:9002 (management interface).
 HW_PROXY_URL="https://192.168.1.146:9001"
