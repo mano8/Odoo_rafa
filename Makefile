@@ -23,7 +23,7 @@ CERT_NAME ?= local-cert
 .PHONY: help check install \
         install-user install-sudoers install-firewall install-systemd \
         certs-traefik certs-docker \
-        deploy-hw-proxy update-hw-proxy volumes build \
+        deploy-hw-proxy update-hw-proxy update-odoo-addon volumes build \
         up down restart update \
         logs status backup
 
@@ -39,6 +39,7 @@ help:
 	@printf "  %-26s %s\n" "make certs-docker"       "Generate Docker mTLS certificates"
 	@printf "  %-26s %s\n" "make deploy-hw-proxy"    "Deploy hw_proxy service (venv + code)"
 	@printf "  %-26s %s\n" "make update-hw-proxy"    "Pull main, redeploy hw_proxy, restart service"
+	@printf "  %-26s %s\n" "make update-odoo-addon"  "Run addon update script and restart Odoo container"
 	@printf "  %-26s %s\n" "make install-systemd"    "Install and enable systemd services"
 	@printf "  %-26s %s\n" "make volumes"            "Fix Docker volume ownership (userns-remap)"
 	@printf "  %-26s %s\n" "make build"              "Build Docker images"
@@ -161,6 +162,15 @@ deploy-hw-proxy:
 	@echo "[deploy-hw-proxy] Deploying hw_proxy (HW_USER=$(HW_USER))..."
 	@sudo HW_USER=$(HW_USER) bash $(REPO_DIR)/hw_proxy/hw_proxy/scripts/update_hw_proxy.sh
 	@echo "[deploy-hw-proxy] Done."
+
+# Run the addon update script and restart the Odoo container.
+# Use this after deploying changes to odoo_addons without rebuilding the stack.
+update-odoo-addon:
+	@echo "[update-odoo-addon] Running addon update script..."
+	@sudo $(COMPOSE_DIR)/update_addon.sh
+	@echo "[update-odoo-addon] Restarting Odoo container..."
+	@sudo docker restart odoo_prod-fiesta_odoo-1
+	@echo "[update-odoo-addon] Done."
 
 # Pull latest code, redeploy hw_proxy venv, restart the systemd service.
 # Use this for routine hw_proxy updates without touching the Docker stack.
