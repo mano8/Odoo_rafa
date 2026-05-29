@@ -90,7 +90,9 @@ function _isDivider(text) {
 }
 
 function _hasRightChild(el) {
-    return Boolean(el.querySelector(".pos-receipt-right-align, .ms-auto"));
+    return [...el.children].some(
+        (c) => c.classList.contains("pos-receipt-right-align") || c.classList.contains("ms-auto")
+    );
 }
 
 function _isFlexRow(el) {
