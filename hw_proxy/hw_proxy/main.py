@@ -198,7 +198,7 @@ async def _ups_metrics_task() -> None:
     while True:
         try:
             proc = await asyncio.create_subprocess_exec(
-                "upsc", "salicru@localhost",
+                "/usr/bin/upsc", "salicru@localhost",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL,
             )
