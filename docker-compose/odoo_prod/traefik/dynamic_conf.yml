@@ -61,6 +61,8 @@ http:
     hw-proxy-service:
       loadBalancer:
         servers:
+          # MGMT_IP: if you change the management interface IP, update this URL,
+          # hw_proxy.service --host, and MGMT_IP in both .env files.
           - url: "http://10.254.254.1:9002"
     hw-status-service:
       loadBalancer:
@@ -72,6 +74,7 @@ http:
         servers:
           # 'grafana' resolves via Docker embedded DNS on monitoring_shared network
           - url: "http://grafana:3000"
+
 
   middlewares:
     ip-allowlist:

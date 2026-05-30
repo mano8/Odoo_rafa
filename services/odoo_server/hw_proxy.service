@@ -7,6 +7,9 @@ User=hw_user
 Group=hw_user
 WorkingDirectory=/opt/hw_proxy
 Environment="PATH=/opt/hw_proxy/.venv/bin"
+# Bind address: docker0-mgmt dummy interface (default 10.254.254.1).
+# If you use a different management interface IP, change the --host value here
+# and update MGMT_IP in docker-compose/odoo_prod/.env and docker-compose/monitoring/.env.
 ExecStart=/opt/hw_proxy/.venv/bin/uvicorn hw_proxy.main:app --host 10.254.254.1 --port 9002 --workers 1 --log-level info
 Restart=always
 RestartSec=5s
