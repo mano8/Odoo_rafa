@@ -185,7 +185,7 @@ update-odoo-addon:
 # Use this for routine hw_proxy updates without touching the Docker stack.
 update-hw-proxy:
 	@echo "[update-hw-proxy] Pulling latest code from origin main..."
-	@git -C $(REPO_DIR) -c safe.directory=$(REPO_DIR) pull origin main
+	@git -C $(REPO_DIR) pull origin main
 	@echo "[update-hw-proxy] Running update script..."
 	@$(SUDO) $(REPO_DIR)/hw_proxy/hw_proxy/scripts/update_hw_proxy.sh
 	@echo "[update-hw-proxy] Restarting hw_proxy service..."
