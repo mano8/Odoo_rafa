@@ -32,6 +32,7 @@ BACKUP_DIR ?= /opt/backups/odoo_rafa
         deploy-hw-proxy update-hw-proxy update-odoo-addon volumes build \
         create-networks stack-up up down restart update \
         monitoring-up monitoring-down monitoring-logs \
+        monitoring-reload monitoring-reload-prometheus monitoring-reload-grafana \
         logs status backup backup-volumes restore-volumes
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -56,9 +57,12 @@ help:
 	@printf "  %-26s %s\n" "make down"               "Stop the odoo_prod stack"
 	@printf "  %-26s %s\n" "make restart"            "Restart odoo_prod + monitoring"
 	@printf "  %-26s %s\n" "make update"             "Pull code, redeploy hw_proxy, rebuild"
-	@printf "  %-26s %s\n" "make monitoring-up"      "Start only the monitoring stack (Prometheus + Grafana)"
-	@printf "  %-26s %s\n" "make monitoring-down"    "Stop only the monitoring stack"
-	@printf "  %-26s %s\n" "make monitoring-logs"    "Follow monitoring container logs"
+	@printf "  %-26s %s\n" "make monitoring-up"               "Start only the monitoring stack (Prometheus + Grafana)"
+	@printf "  %-26s %s\n" "make monitoring-down"             "Stop only the monitoring stack"
+	@printf "  %-26s %s\n" "make monitoring-logs"             "Follow monitoring container logs"
+	@printf "  %-26s %s\n" "make monitoring-reload"           "Reload Prometheus config (SIGHUP) + restart Grafana"
+	@printf "  %-26s %s\n" "make monitoring-reload-prometheus" "Reload prometheus.yml with no downtime (SIGHUP)"
+	@printf "  %-26s %s\n" "make monitoring-reload-grafana"   "Restart Grafana to apply provisioning changes"
 	@printf "  %-26s %s\n" "make logs"               "Follow odoo_prod container logs"
 	@printf "  %-26s %s\n" "make status"             "Show status of all services and containers"
 	@printf "\n\033[4mMaintenance\033[0m:\n"
@@ -292,6 +296,23 @@ monitoring-down:
 
 monitoring-logs:
 	@cd $(MONITORING_DIR) && $(SUDO) docker compose logs -f --tail=100
+
+# Reload Prometheus config live (SIGHUP — no restart, no data gap).
+# Use after editing docker-compose/monitoring/prometheus.yml.
+monitoring-reload-prometheus:
+	@echo "[monitoring-reload-prometheus] Sending SIGHUP to Prometheus..."
+	@cd $(MONITORING_DIR) && $(SUDO) docker compose kill -s SIGHUP prometheus
+	@echo "[monitoring-reload-prometheus] Done. Verify: make monitoring-logs"
+
+# Restart Grafana to apply provisioning changes (dashboards, datasources, alerts).
+# Use after editing monitoring/grafana/provisioning/ or monitoring/grafana/dashboards/.
+monitoring-reload-grafana:
+	@echo "[monitoring-reload-grafana] Restarting Grafana..."
+	@cd $(MONITORING_DIR) && $(SUDO) docker compose restart grafana
+	@echo "[monitoring-reload-grafana] Done."
+
+# Reload both: Prometheus config + Grafana provisioning.
+monitoring-reload: monitoring-reload-prometheus monitoring-reload-grafana
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Update — pull latest code and redeploy everything
