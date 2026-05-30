@@ -85,7 +85,7 @@ app = FastAPI(
     title="Odoo IoT Box Proxy (FastAPI Async)",
     openapi_url=f"{settings.API_PREFIX}/openapi.json",
     docs_url=f"{settings.API_PREFIX}/docs",
-    redoc_url=f"{settings.API_PREFIX}/redoc"
+    redoc_url=f"{settings.API_PREFIX}/redoc",
 )
 
 
