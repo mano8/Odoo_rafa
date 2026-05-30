@@ -185,11 +185,11 @@ update-odoo-addon:
 # Use this for routine hw_proxy updates without touching the Docker stack.
 update-hw-proxy:
 	@echo "[update-hw-proxy] Pulling latest code from origin main..."
-	@cd $(REPO_DIR) && sudo git pull origin main
+	@git -C $(REPO_DIR) -c safe.directory=$(REPO_DIR) pull origin main
 	@echo "[update-hw-proxy] Running update script..."
-	@sudo $(REPO_DIR)/hw_proxy/hw_proxy/scripts/update_hw_proxy.sh
+	@$(SUDO) $(REPO_DIR)/hw_proxy/hw_proxy/scripts/update_hw_proxy.sh
 	@echo "[update-hw-proxy] Restarting hw_proxy service..."
-	@sudo systemctl restart hw_proxy
+	@$(SUDO) systemctl restart hw_proxy
 	@echo "[update-hw-proxy] Done."
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -298,7 +298,7 @@ update:
 	@echo "[update] Rebuilding Docker images..."
 	@$(MAKE) build
 	@echo "[update] Restarting Docker stack..."
-	@cd $(COMPOSE_DIR) && sudo docker compose up -d --remove-orphans
+	@cd $(COMPOSE_DIR) && $(SUDO) docker compose up -d --remove-orphans
 	@echo "[update] Done."
 
 # ──────────────────────────────────────────────────────────────────────────────
