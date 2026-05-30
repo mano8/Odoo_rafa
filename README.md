@@ -130,7 +130,9 @@ make update-hw-proxy        # pull main + redeploy hw_proxy venv + restart servi
 make update-odoo-addon      # run addon update script + restart Odoo container
 make update                 # full update: hw_proxy + Docker rebuild + compose restart
 make status                 # show status of all systemd services and Docker containers
-make backup                 # trigger a PostgreSQL database backup
+make backup                 # trigger a PostgreSQL database backup (pg_dump)
+make backup-volumes         # snapshot pgdata + filestore → /opt/backups/odoo_rafa/ (max 5, rotated)
+make restore-volumes BACKUP=<path>  # restore from a snapshot directory
 make logs                   # follow all container logs
 ```
 
@@ -362,7 +364,22 @@ docker compose up -d
 ### Database Backup
 
 ```bash
-docker exec -t fiesta_db pg_dump -U odoo odoo > backup.sql
+# pg_dump only (logical SQL dump via hw_proxy script):
+make backup
+
+# Full volume snapshot — PostgreSQL data directory + Odoo filestore:
+make backup-volumes
+# Creates /opt/backups/odoo_rafa/<datetime>/ with pgdata.tar.gz + odoo_data.tar.gz.
+# Keeps the last 5 snapshots (oldest deleted automatically).
+# DB and Odoo stop for ~30 s during the snapshot; all other services keep running.
+```
+
+### Disaster Recovery — Restore from Snapshot
+
+```bash
+make restore-volumes BACKUP=/opt/backups/odoo_rafa/2026-05-30_14-00-00
+# Stops all stacks, extracts archives with original ownership preserved,
+# re-applies userns-remap ownership, then restarts both stacks.
 ```
 
 ---
