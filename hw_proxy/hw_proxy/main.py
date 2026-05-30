@@ -16,9 +16,13 @@ from hw_proxy.app.main import app_router
 from hw_proxy.core.config import settings
 from hw_proxy.core.printer_pool import PrinterPool
 from hw_proxy.metrics import (
+    cashdrawer_operations_total,
     disk_free_bytes,
     http_request_duration_seconds,
     http_requests_total,
+    print_jobs_total,
+    printer_online,
+    printer_paper_ok,
 )
 
 
@@ -178,6 +182,22 @@ async def _disk_metrics_task() -> None:
         await asyncio.sleep(30)
 
 
+async def _printer_status_task(pool: PrinterPool) -> None:
+    """Poll printer status every 60 s and keep Prometheus gauges current.
+
+    printer_online / printer_paper_ok are otherwise only updated when Odoo
+    POS calls /status_json — leaving the Grafana panels blank when POS is idle.
+    """
+    while True:
+        try:
+            status = await pool.get_full_status()
+            printer_online.set(1 if status.get("is_online") else 0)
+            printer_paper_ok.set(1 if status.get("paper_status") == "ok" else 0)
+        except Exception as exc:
+            logger.warning("[printer_status_task] failed: %s", exc)
+        await asyncio.sleep(60)
+
+
 @app.on_event("startup")
 async def _startup() -> None:
     pool = PrinterPool(settings.PRINTER_KEY)
@@ -187,6 +207,13 @@ async def _startup() -> None:
         logger.warning("[Startup] Printer not available at boot: %s", e)
     app.state.printer_pool = pool
     asyncio.create_task(_disk_metrics_task())
+    asyncio.create_task(_printer_status_task(pool))
+    # Pre-initialize counters so panels show a flat 0 line before the first event.
+    for _action in ("print_receipt_json", "print_receipt", "cut_receipt"):
+        for _result in ("success", "error"):
+            print_jobs_total.labels(action=_action, result=_result)
+    for _result in ("success", "error"):
+        cashdrawer_operations_total.labels(result=_result)
     logger.info("[Startup] Printer pool ready.")
 
 
