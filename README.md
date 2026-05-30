@@ -133,6 +133,9 @@ make status                 # show status of all systemd services and Docker con
 make backup                 # trigger a PostgreSQL database backup (pg_dump)
 make backup-volumes         # snapshot pgdata + filestore → /opt/backups/odoo_rafa/ (max 5, rotated)
 make restore-volumes BACKUP=<path>  # restore from a snapshot directory
+make monitoring-reload      # reload Prometheus config (SIGHUP) + restart Grafana
+make monitoring-reload-prometheus  # reload prometheus.yml only — zero downtime
+make monitoring-reload-grafana     # restart Grafana to apply provisioning/dashboard changes
 make logs                   # follow all container logs
 ```
 

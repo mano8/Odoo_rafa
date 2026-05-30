@@ -9,6 +9,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`make monitoring-reload-prometheus`** — sends `SIGHUP` to Prometheus for
+  zero-downtime config reload after editing `prometheus.yml`. Does not restart
+  the container; scraping continues uninterrupted. (`--web.enable-lifecycle` is
+  not set so the HTTP reload endpoint is disabled; SIGHUP is the correct path.)
+
+- **`make monitoring-reload-grafana`** — restarts the Grafana container to pick
+  up changes to `monitoring/grafana/provisioning/` or `dashboards/`. Required
+  because Grafana has no hot-reload signal.
+
+- **`make monitoring-reload`** — convenience shortcut that runs both of the
+  above in sequence.
+
 - **`make backup-volumes`** — disaster-recovery volume snapshot. Stops DB and Odoo
   (~30 s), archives `postgres/pgdata` and `odoo/data` (filestore) as gzip tarballs
   into `/opt/backups/odoo_rafa/<datetime>/`. Keeps the last 5 snapshots (oldest
