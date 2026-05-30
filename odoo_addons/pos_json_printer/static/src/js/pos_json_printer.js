@@ -6,6 +6,7 @@ import { SaleDetailsButton } from "@point_of_sale/app/navbar/sale_details_button
 import { Navbar } from "@point_of_sale/app/navbar/navbar";
 import { patch } from "@web/core/utils/patch";
 import { formatDateTime } from "@web/core/l10n/dates";
+import { _t } from "@web/core/l10n/translation";
 
 const { DateTime } = luxon;
 
@@ -377,7 +378,7 @@ function _buildSaleDetailsLines(sd, charSize, fmt, pos) {
                 const uom = line.uom && line.uom !== "Units" ? ` ${line.uom}` : "";
                 const right = `${_fmtQty(line.quantity)}${uom} x ${fmt(line.price_unit, false)}`;
                 _row(name, right);
-                if (line.discount) _text(`  Discount: ${line.discount}%`);
+                if (line.discount) _text(`  ${_t("Discount")}: ${line.discount}%`);
             }
         }
     };
@@ -387,24 +388,24 @@ function _buildSaleDetailsLines(sd, charSize, fmt, pos) {
     if (company) _text(company);
 
     // SOLD section
-    _text("SOLD:");
+    _text(_t("SOLD:"));
     _productSection(sd.products);
     _div();
 
     // REFUNDED section (always shown to match original template)
-    _text("REFUNDED:");
+    _text(_t("REFUNDED:"));
     _productSection(sd.refund_products);
     _div();
 
     // Payments
-    _text("Payments:");
+    _text(_t("Payments:"));
     for (const p of sd.payments ?? []) {
         _row(String(p.name ?? ""), fmt(p.total ?? 0, false));
     }
     _div();
 
     // Taxes — backend returns either an object or array
-    _text("Taxes:");
+    _text(_t("Taxes:"));
     const taxes = Array.isArray(sd.taxes) ? sd.taxes : Object.values(sd.taxes ?? {});
     for (const tax of taxes) {
         _row(String(tax.name ?? ""), fmt(tax.tax_amount ?? 0, false));
@@ -412,7 +413,7 @@ function _buildSaleDetailsLines(sd, charSize, fmt, pos) {
     _div();
 
     // Total
-    _row("Total:", fmt(sd.currency?.total_paid ?? 0, false));
+    _row(_t("Total:"), fmt(sd.currency?.total_paid ?? 0, false));
 
     // Date — pinned so it always prints at size 1 (matches order receipt footer)
     _text(formatDateTime(DateTime.now()), null, true);
