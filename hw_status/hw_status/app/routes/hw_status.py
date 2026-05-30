@@ -4,7 +4,8 @@ Api routes for hw_status module
 import logging
 import asyncio
 import base64
-from fastapi import APIRouter, Depends, HTTPException, Header, Request
+from typing import Optional
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from escpos.printer import Dummy
 from fastapi.templating import Jinja2Templates
@@ -33,21 +34,23 @@ def _detect_lang(accept_language: str) -> str:
     return "en"
 
 
-@router.get(
-    "/",
-    response_class=HTMLResponse
-)
+@router.get("/", response_class=HTMLResponse)
 async def system_status(
     request: Request,
+    lang: Optional[str] = Query(default=None),
     accept_language: str = Header(default=""),
     templates: Jinja2Templates = Depends(get_templates),
 ):
-    """Serves the IoT Box status UI in Spanish or English based on browser language."""
-    lang = _detect_lang(accept_language)
-    template = "full_bootstrap_es.html" if lang == "es" else "full_bootstrap.html"
+    """Serves the IoT Box status UI in Spanish or English.
+
+    Language priority: ?lang= query param > Accept-Language header.
+    """
+    resolved = lang if lang in ("es", "en") else _detect_lang(accept_language)
+    template = "full_bootstrap_es.html" if resolved == "es" else "full_bootstrap.html"
     context = {
         "hw_proxy_url": str(settings.HW_PROXY_URL).rstrip("/"),
         "odoo_url": str(settings.BACKEND_HOST).rstrip("/"),
         "grafana_url": str(settings.BACKEND_HOST).rstrip("/") + "/grafana",
+        "lang": resolved,
     }
     return templates.TemplateResponse(request=request, name=template, context=context)
