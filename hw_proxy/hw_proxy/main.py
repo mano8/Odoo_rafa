@@ -23,6 +23,13 @@ from hw_proxy.metrics import (
     print_jobs_total,
     printer_online,
     printer_paper_ok,
+    ups_battery_charge,
+    ups_battery_voltage,
+    ups_input_voltage,
+    ups_load,
+    ups_low_battery,
+    ups_on_battery,
+    ups_online,
 )
 
 
@@ -182,6 +189,52 @@ async def _disk_metrics_task() -> None:
         await asyncio.sleep(30)
 
 
+async def _ups_metrics_task() -> None:
+    """Poll NUT every 30 s via upsc and update UPS Prometheus gauges.
+
+    Requires nut-server (upsd) running on localhost:3493.
+    Silently skips if upsc is not installed or NUT is unavailable.
+    """
+    while True:
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "upsc", "salicru@localhost",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
+            data: dict[str, str] = {}
+            for line in stdout.decode().splitlines():
+                if ": " in line:
+                    k, _, v = line.partition(": ")
+                    data[k.strip()] = v.strip()
+            if data:
+                _safe_set(ups_battery_charge, data.get("battery.charge"))
+                _safe_set(ups_battery_voltage, data.get("battery.voltage"))
+                _safe_set(ups_input_voltage, data.get("input.voltage"))
+                _safe_set(ups_load, data.get("ups.load"))
+                status = data.get("ups.status", "")
+                flags = status.split()
+                ups_online.set(1 if "OL" in flags else 0)
+                ups_on_battery.set(1 if "OB" in flags else 0)
+                ups_low_battery.set(1 if "LB" in flags else 0)
+        except (FileNotFoundError, asyncio.TimeoutError, OSError) as exc:
+            logger.debug("[ups_metrics_task] upsc unavailable: %s", exc)
+        except Exception as exc:
+            logger.warning("[ups_metrics_task] failed: %s", exc)
+        await asyncio.sleep(30)
+
+
+def _safe_set(gauge, value: str | None) -> None:
+    """Set a gauge from a string value, ignoring None or non-numeric strings."""
+    if value is None:
+        return
+    try:
+        gauge.set(float(value))
+    except ValueError:
+        pass
+
+
 async def _printer_status_task(pool: PrinterPool) -> None:
     """Poll printer status every 60 s and keep Prometheus gauges current.
 
@@ -208,6 +261,7 @@ async def _startup() -> None:
     app.state.printer_pool = pool
     asyncio.create_task(_disk_metrics_task())
     asyncio.create_task(_printer_status_task(pool))
+    asyncio.create_task(_ups_metrics_task())
     # Pre-initialize counters so panels show a flat 0 line before the first event.
     for _action in ("print_receipt_json", "print_receipt", "cut_receipt"):
         for _result in ("success", "error"):

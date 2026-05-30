@@ -55,3 +55,33 @@ disk_free_bytes = Gauge(
     "Free disk space in bytes",
     ["mountpoint"],
 )
+
+# --- UPS (populated by _ups_metrics_task; requires NUT/upsc on the host) ---
+ups_battery_charge = Gauge(
+    "hw_proxy_ups_battery_charge_percent",
+    "UPS battery charge level (0–100 %)",
+)
+ups_battery_voltage = Gauge(
+    "hw_proxy_ups_battery_voltage_volts",
+    "UPS battery voltage",
+)
+ups_input_voltage = Gauge(
+    "hw_proxy_ups_input_voltage_volts",
+    "UPS input (mains) voltage",
+)
+ups_load = Gauge(
+    "hw_proxy_ups_load_percent",
+    "UPS output load (0–100 %)",
+)
+ups_online = Gauge(
+    "hw_proxy_ups_online",
+    "UPS on mains power: 1=OL, 0=on battery or unknown",
+)
+ups_on_battery = Gauge(
+    "hw_proxy_ups_on_battery",
+    "UPS running on battery: 1=OB, 0=on mains",
+)
+ups_low_battery = Gauge(
+    "hw_proxy_ups_low_battery",
+    "UPS low-battery flag: 1=LB (shutdown imminent), 0=ok",
+)
