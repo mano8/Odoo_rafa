@@ -25,10 +25,12 @@ hw-status-prod:
 	$(PYTHON) -m $(PIP) download --only-binary=:all: --python-version 3.11 \
 	  --dest $(WHEELHOUSE_HW_STATUS) -r $(REQ_HW_STATUS_PROD)
 
+# hw-proxy-prod: run on the deployment server — wheels must match the system
+# Python that hw_proxy's venv uses (typically differs from Docker Python 3.11).
 hw-proxy-prod:
 	@mkdir -p $(WHEELHOUSE_HW_PROXY)
 	@rm -rf $(WHEELHOUSE_HW_PROXY)/*
-	$(PYTHON) -m $(PIP) download --only-binary=:all: --python-version 3.11 \
+	$(PYTHON) -m $(PIP) download --only-binary=:all: \
 	  --dest $(WHEELHOUSE_HW_PROXY) -r $(REQ_HW_PROXY)
 
 # Dev wheels
