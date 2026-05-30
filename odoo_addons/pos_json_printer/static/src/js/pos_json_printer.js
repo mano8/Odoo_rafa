@@ -3,6 +3,7 @@
 import { PosStore } from "@point_of_sale/app/store/pos_store";
 import { OrderReceipt } from "@point_of_sale/app/screens/receipt_screen/receipt/order_receipt";
 import { SaleDetailsButton } from "@point_of_sale/app/navbar/sale_details_button/sale_details_button";
+import { Navbar } from "@point_of_sale/app/navbar/navbar";
 import { patch } from "@web/core/utils/patch";
 import { renderToElement } from "@web/core/utils/render";
 import { formatDateTime } from "@web/core/l10n/dates";
@@ -313,6 +314,74 @@ patch(PosStore.prototype, {
     },
 });
 
+// ─── Sale-details helpers ─────────────────────────────────────────────────────
+//
+// hw_proxy char widths: sizes 1+2 share 42 cols (same glyph width, size 2 is
+// double-height only); size 3 is 2× wide so only 21 cols fit.
+const _LINE_W = { 1: 42, 2: 42, 3: 21 };
+
+/**
+ * Post-process lines produced by _domToLines() for the SaleDetailsReport:
+ *
+ * 1. Fix OWL whitespace stripping between adjacent <t> nodes that causes
+ *    "1Unidades" instead of "1 Unidades" in the qty×uom text.
+ * 2. If a row's left+right exceeds the printer line width for the current
+ *    char_size, replace the single row with a plain-text name line followed
+ *    by a right-aligned qty×price line — but only when it doesn't fit.
+ */
+function _postProcessSaleDetailsLines(lines, charSize) {
+    const W = _LINE_W[charSize] || 42;
+    const result = [];
+    for (const line of lines) {
+        if (line.t !== "row") {
+            result.push(line);
+            continue;
+        }
+        const left = line.l || "";
+        // Add space between a digit and the first letter of a unit word,
+        // e.g. "1Unidades" → "1 Unidades", "12Kg" → "12 Kg"
+        const right = (line.r || "").replace(/(\d)([^\d\s.,€$£\-=×x])/g, "$1 $2");
+        if (!left || left.length + right.length + 1 <= W) {
+            // Fits on one line — keep as a left/right row
+            result.push({ ...line, r: right });
+        } else {
+            // Too long: product name first, then qty×price right-aligned below
+            result.push({ t: "text", v: left });
+            if (right) result.push({ t: "text", v: right, c: "right" });
+        }
+    }
+    return result;
+}
+
+/**
+ * Shared helper: render SaleDetailsReport DOM, convert to lines, post-process,
+ * and POST to the hw_proxy JSON endpoint.  Returns true on success.
+ */
+async function _printSaleDetails(pos) {
+    const saleDetails = await pos.data.call(
+        "report.point_of_sale.report_saledetails",
+        "get_sale_details",
+        [false, false, false, [pos.session.id]]
+    );
+    const report = renderToElement("point_of_sale.SaleDetailsReport", {
+        ...saleDetails,
+        date: formatDateTime(DateTime.now()),
+        pos,
+        formatCurrency: pos.env.utils.formatCurrency,
+    });
+    const charSize = pos.config.receipt_char_size || 1;
+    const raw = _domToLines(report);
+    if (!raw.length) throw new Error("empty DOM");
+    const lines = _postProcessSaleDetailsLines(raw, charSize);
+    const ok = await _postJson(_hwUrl(pos.config), {
+        lines,
+        char_size: charSize,
+        cut: true,
+        open_cashdrawer: false,
+    });
+    if (!ok) throw new Error("post failed");
+}
+
 // ─── SaleDetailsButton patch (session / Z-report) ─────────────────────────────
 //
 // The "Print" button inside ClosePosPopup calls hardwareProxy.printer.printReceipt()
@@ -325,29 +394,29 @@ patch(SaleDetailsButton.prototype, {
             return await super.onClick();
         }
         try {
-            const saleDetails = await this.pos.data.call(
-                "report.point_of_sale.report_saledetails",
-                "get_sale_details",
-                [false, false, false, [this.pos.session.id]]
-            );
-            const report = renderToElement("point_of_sale.SaleDetailsReport", {
-                ...saleDetails,
-                date: formatDateTime(DateTime.now()),
-                pos: this.pos,
-                formatCurrency: this.pos.env.utils.formatCurrency,
-            });
-            const lines = _domToLines(report);
-            if (!lines.length) throw new Error("empty DOM");
-            const ok = await _postJson(_hwUrl(this.pos.config), {
-                lines,
-                char_size: this.pos.config.receipt_char_size || 1,
-                cut: true,
-                open_cashdrawer: false,
-            });
-            if (!ok) throw new Error("post failed");
+            await _printSaleDetails(this.pos);
         } catch (e) {
             console.warn("[pos_json_printer] SaleDetails JSON failed, falling back:", e);
             return await super.onClick();
+        }
+    },
+});
+
+// ─── Navbar patch (hamburger menu "Print Report") ─────────────────────────────
+//
+// The hamburger menu calls Navbar.showSaleDetails() → handleSaleDetails()
+// directly, bypassing SaleDetailsButton entirely.
+
+patch(Navbar.prototype, {
+    async showSaleDetails() {
+        if (!this.pos.config.use_json_printer) {
+            return await super.showSaleDetails();
+        }
+        try {
+            await _printSaleDetails(this.pos);
+        } catch (e) {
+            console.warn("[pos_json_printer] Navbar SaleDetails JSON failed, falling back:", e);
+            return await super.showSaleDetails();
         }
     },
 });
