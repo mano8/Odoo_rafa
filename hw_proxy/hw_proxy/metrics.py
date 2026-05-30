@@ -48,3 +48,10 @@ cashdrawer_operations_total = Counter(
     "Total cash drawer open attempts",
     ["result"],
 )
+
+# --- System ---
+disk_free_bytes = Gauge(
+    "hw_proxy_disk_free_bytes",
+    "Free disk space in bytes",
+    ["mountpoint"],
+)

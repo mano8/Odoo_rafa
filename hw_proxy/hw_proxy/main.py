@@ -3,6 +3,7 @@ import asyncio
 import logging
 import socket
 import time
+import psutil
 from ipaddress import ip_address, ip_network
 from urllib.parse import urlparse
 from fastapi import FastAPI, Request
@@ -14,7 +15,11 @@ from hw_proxy.__init__ import configure_logging
 from hw_proxy.app.main import app_router
 from hw_proxy.core.config import settings
 from hw_proxy.core.printer_pool import PrinterPool
-from hw_proxy.metrics import http_request_duration_seconds, http_requests_total
+from hw_proxy.metrics import (
+    disk_free_bytes,
+    http_request_duration_seconds,
+    http_requests_total,
+)
 
 
 logging.basicConfig()
@@ -162,6 +167,17 @@ app.add_middleware(
     max_age=3600,
 )
 
+async def _disk_metrics_task() -> None:
+    """Update disk_free_bytes gauge every 30 s for the root mountpoint."""
+    while True:
+        try:
+            usage = psutil.disk_usage("/")
+            disk_free_bytes.labels(mountpoint="/").set(usage.free)
+        except Exception as exc:
+            logger.warning("[disk_metrics] failed to read disk usage: %s", exc)
+        await asyncio.sleep(30)
+
+
 @app.on_event("startup")
 async def _startup() -> None:
     pool = PrinterPool(settings.PRINTER_KEY)
@@ -170,6 +186,7 @@ async def _startup() -> None:
     except Exception as e:
         logger.warning("[Startup] Printer not available at boot: %s", e)
     app.state.printer_pool = pool
+    asyncio.create_task(_disk_metrics_task())
     logger.info("[Startup] Printer pool ready.")
 
 
