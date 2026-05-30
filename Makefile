@@ -6,10 +6,11 @@
 # Designed to run on the Linux deployment machine from /opt/Odoo_rafa.
 # ==============================================================================
 
-REPO_DIR     := $(realpath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-COMPOSE_DIR  := $(REPO_DIR)/docker-compose/odoo_prod
-SCRIPTS_DIR  := $(REPO_DIR)/docker-compose/scripts
-SERVICES_DIR := $(REPO_DIR)/services/odoo_server
+REPO_DIR       := $(realpath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+COMPOSE_DIR    := $(REPO_DIR)/docker-compose/odoo_prod
+MONITORING_DIR := $(REPO_DIR)/docker-compose/monitoring
+SCRIPTS_DIR    := $(REPO_DIR)/docker-compose/scripts
+SERVICES_DIR   := $(REPO_DIR)/services/odoo_server
 DOCKER_SCRIPTS := $(REPO_DIR)/docker/scripts
 
 # Overridable at the command line, e.g.: make install HW_USER=myuser
@@ -28,7 +29,8 @@ OFFLINE   ?= 0
         install-user install-sudoers install-firewall install-systemd \
         certs-traefik certs-docker \
         deploy-hw-proxy update-hw-proxy update-odoo-addon volumes build \
-        stack-up up down restart update \
+        create-networks stack-up up down restart update \
+        monitoring-up monitoring-down monitoring-logs \
         logs status backup
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -48,13 +50,16 @@ help:
 	@printf "  %-26s %s\n" "make volumes"            "Fix Docker volume ownership (userns-remap)"
 	@printf "  %-26s %s\n" "make build"              "Build Docker images"
 	@printf "\n\033[4mRuntime\033[0m:\n"
-	@printf "  %-26s %s\n" "make stack-up"           "Rebuild images and start stack (add OFFLINE=1 for air-gapped)"
-	@printf "  %-26s %s\n" "make up"                 "Start the Docker Compose stack (no rebuild)"
-	@printf "  %-26s %s\n" "make down"               "Stop the Docker Compose stack"
-	@printf "  %-26s %s\n" "make restart"            "Restart the Docker Compose stack"
+	@printf "  %-26s %s\n" "make stack-up"           "Rebuild images, start odoo_prod + monitoring (add OFFLINE=1 for air-gapped)"
+	@printf "  %-26s %s\n" "make up"                 "Start odoo_prod + monitoring (no rebuild)"
+	@printf "  %-26s %s\n" "make down"               "Stop the odoo_prod stack"
+	@printf "  %-26s %s\n" "make restart"            "Restart odoo_prod + monitoring"
 	@printf "  %-26s %s\n" "make update"             "Pull code, redeploy hw_proxy, rebuild"
-	@printf "  %-26s %s\n" "make logs"               "Follow all container logs"
-	@printf "  %-26s %s\n" "make status"             "Show status of all services"
+	@printf "  %-26s %s\n" "make monitoring-up"      "Start only the monitoring stack (Prometheus + Grafana)"
+	@printf "  %-26s %s\n" "make monitoring-down"    "Stop only the monitoring stack"
+	@printf "  %-26s %s\n" "make monitoring-logs"    "Follow monitoring container logs"
+	@printf "  %-26s %s\n" "make logs"               "Follow odoo_prod container logs"
+	@printf "  %-26s %s\n" "make status"             "Show status of all services and containers"
 	@printf "\n\033[4mMaintenance\033[0m:\n"
 	@printf "  %-26s %s\n" "make backup"             "Trigger PostgreSQL database backup"
 	@printf "  %-26s %s\n" "make check"              "Verify prerequisites"
@@ -83,7 +88,7 @@ check:
 #   cp $(REPO_DIR)/hw_proxy/hw_proxy/en.example.txt /opt/hw_proxy/hw_proxy/.env
 # ──────────────────────────────────────────────────────────────────────────────
 install: check install-user install-sudoers install-firewall \
-         certs-traefik deploy-hw-proxy install-systemd volumes build
+         certs-traefik deploy-hw-proxy install-systemd create-networks volumes build
 	@echo ""
 	@echo "================================================================"
 	@echo " Install complete. Before starting the stack:"
@@ -203,6 +208,15 @@ install-systemd:
 	@echo "[install-systemd] Done."
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Shared Docker networks (idempotent — safe to re-run)
+# ──────────────────────────────────────────────────────────────────────────────
+create-networks:
+	@echo "[create-networks] Ensuring shared networks exist…"
+	@$(SUDO) docker network inspect monitoring_shared >/dev/null 2>&1 \
+	  || $(SUDO) docker network create monitoring_shared
+	@echo "[create-networks] Done."
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Docker volume ownership for userns-remap
 # ──────────────────────────────────────────────────────────────────────────────
 volumes:
@@ -222,39 +236,59 @@ build:
 # Stack lifecycle
 # ──────────────────────────────────────────────────────────────────────────────
 
-# Rebuild images and (re)start the full Odoo POS stack.
+# Rebuild images and (re)start odoo_prod + monitoring.
 # Online (default):  make stack-up
 # Offline/air-gap:   make stack-up OFFLINE=1
-stack-up:
+stack-up: create-networks
 ifeq ($(OFFLINE),1)
 	@echo "[stack-up] Offline mode: vendoring wheels and loading images…"
 	@$(MAKE) -C $(REPO_DIR)/docker_offline load SUDO=$(SUDO)
 endif
 	@echo "[stack-up] Building Docker images…"
-	@cd $(COMPOSE_DIR) && sudo docker compose build
+	@cd $(COMPOSE_DIR) && $(SUDO) docker compose build
 	@echo "[stack-up] Generating odoo.conf…"
-	@cd $(COMPOSE_DIR) && sudo bash $(SCRIPTS_DIR)/generate_odoo_conf.sh
+	@cd $(COMPOSE_DIR) && $(SUDO) bash $(SCRIPTS_DIR)/generate_odoo_conf.sh
 	@echo "[stack-up] Fixing volume ownership…"
-	@cd $(COMPOSE_DIR) && sudo bash $(SCRIPTS_DIR)/auto_chown_volumes.sh prod
-	@echo "[stack-up] Starting stack…"
-	@cd $(COMPOSE_DIR) && sudo docker compose up -d --remove-orphans
-	@echo "[stack-up] Done. Use 'make logs' to follow output."
+	@cd $(COMPOSE_DIR) && $(SUDO) bash $(SCRIPTS_DIR)/auto_chown_volumes.sh prod
+	@echo "[stack-up] Starting odoo_prod…"
+	@cd $(COMPOSE_DIR) && $(SUDO) docker compose up -d --remove-orphans
+	@echo "[stack-up] Starting monitoring…"
+	@cd $(MONITORING_DIR) && $(SUDO) docker compose up -d --remove-orphans
+	@echo "[stack-up] Done. Use 'make logs' or 'make monitoring-logs' to follow output."
 
-up:
+up: create-networks
 	@echo "[up] Generating odoo.conf from .env..."
-	@cd $(COMPOSE_DIR) && sudo bash $(SCRIPTS_DIR)/generate_odoo_conf.sh
+	@cd $(COMPOSE_DIR) && $(SUDO) bash $(SCRIPTS_DIR)/generate_odoo_conf.sh
 	@echo "[up] Setting volume ownership..."
-	@cd $(COMPOSE_DIR) && sudo bash $(SCRIPTS_DIR)/auto_chown_volumes.sh prod
-	@echo "[up] Starting Docker Compose stack..."
-	@cd $(COMPOSE_DIR) && sudo docker compose up -d --remove-orphans
-	@echo "[up] Stack is running."
+	@cd $(COMPOSE_DIR) && $(SUDO) bash $(SCRIPTS_DIR)/auto_chown_volumes.sh prod
+	@echo "[up] Starting odoo_prod…"
+	@cd $(COMPOSE_DIR) && $(SUDO) docker compose up -d --remove-orphans
+	@echo "[up] Starting monitoring…"
+	@cd $(MONITORING_DIR) && $(SUDO) docker compose up -d --remove-orphans
+	@echo "[up] All stacks running."
 
 down:
-	@echo "[down] Stopping Docker Compose stack..."
-	@cd $(COMPOSE_DIR) && sudo docker compose down
+	@echo "[down] Stopping odoo_prod stack..."
+	@cd $(COMPOSE_DIR) && $(SUDO) docker compose down
 	@echo "[down] Done."
 
 restart: down up
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Monitoring stack
+# ──────────────────────────────────────────────────────────────────────────────
+monitoring-up: create-networks
+	@echo "[monitoring-up] Starting monitoring stack…"
+	@cd $(MONITORING_DIR) && $(SUDO) docker compose up -d --remove-orphans
+	@echo "[monitoring-up] Done."
+
+monitoring-down:
+	@echo "[monitoring-down] Stopping monitoring stack…"
+	@cd $(MONITORING_DIR) && $(SUDO) docker compose down
+	@echo "[monitoring-down] Done."
+
+monitoring-logs:
+	@cd $(MONITORING_DIR) && $(SUDO) docker compose logs -f --tail=100
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Update — pull latest code and redeploy everything
@@ -275,16 +309,19 @@ logs:
 
 status:
 	@echo "=== hw_proxy ==="
-	@sudo systemctl status hw_proxy.service      --no-pager || true
+	@$(SUDO) systemctl status hw_proxy.service      --no-pager || true
 	@echo ""
 	@echo "=== serial-config ==="
-	@sudo systemctl status serial-config.service --no-pager || true
+	@$(SUDO) systemctl status serial-config.service --no-pager || true
 	@echo ""
 	@echo "=== odoo-pos ==="
-	@sudo systemctl status odoo-pos.service      --no-pager || true
+	@$(SUDO) systemctl status odoo-pos.service      --no-pager || true
 	@echo ""
-	@echo "=== Docker containers ==="
-	@cd $(COMPOSE_DIR) && sudo docker compose ps
+	@echo "=== odoo_prod containers ==="
+	@cd $(COMPOSE_DIR) && $(SUDO) docker compose ps
+	@echo ""
+	@echo "=== monitoring containers ==="
+	@cd $(MONITORING_DIR) && $(SUDO) docker compose ps
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Database backup
