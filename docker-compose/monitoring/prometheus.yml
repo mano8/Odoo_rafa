@@ -5,7 +5,9 @@ global:
 scrape_configs:
   - job_name: hw_proxy
     static_configs:
-      - targets: ["host.docker.internal:9002"]
+      # MGMT_IP: if you change the management interface IP, update this target,
+      # hw_proxy.service --host, traefik/dynamic_conf.yml, and MGMT_IP in .env.
+      - targets: ["10.254.254.1:9002"]
         labels:
           service: hw_proxy
           stack: odoo_prod

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'POS Indv Receipt',
-    'version': '18.0.0.1.13',
+    'version': '18.0.0.1.14',
     'category': 'Sales/Point of Sale',
     'summary': 'Print individual tickets for each product unit from POS receipts.',
     'description': """

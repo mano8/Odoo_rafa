@@ -62,3 +62,33 @@ msgstr "Envía JSON al hw_proxy en lugar de PNG — 25× menos datos, impresión
 #: model_terms:ir.ui.view,arch_db:pos_json_printer.res_config_settings_view_form_inherit_json_printer
 msgid "http://<hostname>:9002  (blank = auto-detect)"
 msgstr "http://&lt;hostname&gt;:9002  (vacío = auto-detección)"
+
+#. module: pos_json_printer
+#: code:addons/pos_json_printer/static/src/js/pos_json_printer.js:0
+msgid "SOLD:"
+msgstr "VENTAS:"
+
+#. module: pos_json_printer
+#: code:addons/pos_json_printer/static/src/js/pos_json_printer.js:0
+msgid "REFUNDED:"
+msgstr "DEVOLUCIONES:"
+
+#. module: pos_json_printer
+#: code:addons/pos_json_printer/static/src/js/pos_json_printer.js:0
+msgid "Payments:"
+msgstr "Pagos:"
+
+#. module: pos_json_printer
+#: code:addons/pos_json_printer/static/src/js/pos_json_printer.js:0
+msgid "Taxes:"
+msgstr "Impuestos:"
+
+#. module: pos_json_printer
+#: code:addons/pos_json_printer/static/src/js/pos_json_printer.js:0
+msgid "Total:"
+msgstr "Total:"
+
+#. module: pos_json_printer
+#: code:addons/pos_json_printer/static/src/js/pos_json_printer.js:0
+msgid "Discount"
+msgstr "Descuento"

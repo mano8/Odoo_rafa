@@ -2,7 +2,13 @@
 
 import { PosStore } from "@point_of_sale/app/store/pos_store";
 import { OrderReceipt } from "@point_of_sale/app/screens/receipt_screen/receipt/order_receipt";
+import { SaleDetailsButton } from "@point_of_sale/app/navbar/sale_details_button/sale_details_button";
+import { Navbar } from "@point_of_sale/app/navbar/navbar";
 import { patch } from "@web/core/utils/patch";
+import { formatDateTime } from "@web/core/l10n/dates";
+import { _t } from "@web/core/l10n/translation";
+
+const { DateTime } = luxon;
 
 // ─── hw_proxy helpers ─────────────────────────────────────────────────────────
 
@@ -90,7 +96,9 @@ function _isDivider(text) {
 }
 
 function _hasRightChild(el) {
-    return Boolean(el.querySelector(".pos-receipt-right-align, .ms-auto"));
+    return [...el.children].some(
+        (c) => c.classList.contains("pos-receipt-right-align") || c.classList.contains("ms-auto")
+    );
 }
 
 function _isFlexRow(el) {
@@ -303,6 +311,173 @@ patch(PosStore.prototype, {
             console.warn("[pos_json_printer] DOM scan failed, falling back");
         }
         return await super.printReceipt(options);
+    },
+});
+
+// ─── Sale-details direct line builder ────────────────────────────────────────
+//
+// Builds the session / Z-report lines directly from the structured saleDetails
+// data returned by get_sale_details, bypassing DOM scanning entirely.
+//
+// DOM scanning (via _domToLines) is reliable for OrderReceipt because OWL
+// renders that component predictably.  SaleDetailsReport uses
+// xml:space="preserve" and adjacent <t> nodes whose whitespace behaviour is
+// inconsistent across OWL versions — scanning it produces embedded newlines
+// and broken length counts.  Building from raw data avoids all of that.
+//
+// hw_proxy char widths: sizes 1+2 share 42 cols (same glyph width, size 2 is
+// double-height only); size 3 is 2× wide so only 21 cols fit.
+const _LINE_W = { 1: 42, 2: 42, 3: 21 };
+
+function _fmtQty(qty) {
+    // Trim trailing decimal zeros: 1.000 → "1", 1.500 → "1.5"
+    return String(parseFloat(Number(qty).toFixed(3)));
+}
+
+/**
+ * Convert a saleDetails RPC payload to a flat ReceiptLine array.
+ *
+ * Product rows: if name + qty×price fits in W chars → single row.
+ * Only when too long: product name on its own line, qty×price right-aligned
+ * on the next line.  Applies equally to the SOLD and REFUNDED sections.
+ *
+ * @param {object} sd        - saleDetails from get_sale_details
+ * @param {number|string} charSize - POS receipt_char_size (1/2/3)
+ * @param {Function} fmt     - formatCurrency(value, noSymbol)
+ * @param {object} pos       - PosStore (for company name)
+ */
+function _buildSaleDetailsLines(sd, charSize, fmt, pos) {
+    const W = _LINE_W[charSize] || 42;
+    const out = [];
+
+    const _text = (v, c, pin) => {
+        const line = { t: "text", v: String(v ?? "") };
+        if (c) line.c = c;
+        if (pin) line.pin = true;
+        out.push(line);
+    };
+
+    const _div = () => out.push({ t: "div", dv: "-" });
+
+    // Left/right pair — splits to two lines only when it doesn't fit.
+    const _row = (left, right) => {
+        const l = String(left ?? "");
+        const r = String(right ?? "");
+        if (!l || l.length + r.length + 1 <= W) {
+            out.push({ t: "row", l, r });
+        } else {
+            _text(l);
+            _text(r, "right");
+        }
+    };
+
+    const _productSection = (categories) => {
+        for (const cat of categories ?? []) {
+            for (const line of cat.products ?? []) {
+                const name = String(line.product_name ?? "").substring(0, 20);
+                const uom = line.uom && line.uom !== "Units" ? ` ${line.uom}` : "";
+                const right = `${_fmtQty(line.quantity)}${uom} x ${fmt(line.price_unit, false)}`;
+                _row(name, right);
+                if (line.discount) _text(`  ${_t("Discount")}: ${line.discount}%`);
+            }
+        }
+    };
+
+    // Company name header
+    const company = pos?.company?.name || pos?.config?.company_name || "";
+    if (company) _text(company);
+
+    // SOLD section
+    _text(_t("SOLD:"));
+    _productSection(sd.products);
+    _div();
+
+    // REFUNDED section (always shown to match original template)
+    _text(_t("REFUNDED:"));
+    _productSection(sd.refund_products);
+    _div();
+
+    // Payments
+    _text(_t("Payments:"));
+    for (const p of sd.payments ?? []) {
+        _row(String(p.name ?? ""), fmt(p.total ?? 0, false));
+    }
+    _div();
+
+    // Taxes — backend returns either an object or array
+    _text(_t("Taxes:"));
+    const taxes = Array.isArray(sd.taxes) ? sd.taxes : Object.values(sd.taxes ?? {});
+    for (const tax of taxes) {
+        _row(String(tax.name ?? ""), fmt(tax.tax_amount ?? 0, false));
+    }
+    _div();
+
+    // Total
+    _row(_t("Total:"), fmt(sd.currency?.total_paid ?? 0, false));
+
+    // Date — pinned so it always prints at size 1 (matches order receipt footer)
+    _text(formatDateTime(DateTime.now()), null, true);
+
+    return out;
+}
+
+/**
+ * Fetch sale details, build lines from raw data, and POST to hw_proxy.
+ */
+async function _printSaleDetails(pos) {
+    const sd = await pos.data.call(
+        "report.point_of_sale.report_saledetails",
+        "get_sale_details",
+        [false, false, false, [pos.session.id]]
+    );
+    const charSize = pos.config.receipt_char_size || 1;
+    const lines = _buildSaleDetailsLines(sd, charSize, pos.env.utils.formatCurrency, pos);
+    if (!lines.length) throw new Error("empty report");
+    const ok = await _postJson(_hwUrl(pos.config), {
+        lines,
+        char_size: charSize,
+        cut: true,
+        open_cashdrawer: false,
+    });
+    if (!ok) throw new Error("post failed");
+}
+
+// ─── SaleDetailsButton patch (session / Z-report) ─────────────────────────────
+//
+// The "Print" button inside ClosePosPopup calls hardwareProxy.printer.printReceipt()
+// directly (raster path).  We intercept at the component level so that the same
+// JSON→ESC/POS pipeline and char_size setting apply to the session report.
+
+patch(SaleDetailsButton.prototype, {
+    async onClick() {
+        if (!this.pos.config.use_json_printer) {
+            return await super.onClick();
+        }
+        try {
+            await _printSaleDetails(this.pos);
+        } catch (e) {
+            console.warn("[pos_json_printer] SaleDetails JSON failed, falling back:", e);
+            return await super.onClick();
+        }
+    },
+});
+
+// ─── Navbar patch (hamburger menu "Print Report") ─────────────────────────────
+//
+// The hamburger menu calls Navbar.showSaleDetails() → handleSaleDetails()
+// directly, bypassing SaleDetailsButton entirely.
+
+patch(Navbar.prototype, {
+    async showSaleDetails() {
+        if (!this.pos.config.use_json_printer) {
+            return await super.showSaleDetails();
+        }
+        try {
+            await _printSaleDetails(this.pos);
+        } catch (e) {
+            console.warn("[pos_json_printer] Navbar SaleDetails JSON failed, falling back:", e);
+            return await super.showSaleDetails();
+        }
     },
 });
 

@@ -56,10 +56,14 @@
                 </div>
             </div>
         </div>
-        <main class="row align-items-stretch">
+        <div class="row align-items-stretch">
             {% include 'status_cards/printer_status.html' %}
             {% include 'status_cards/serial_status.html' %}
-        </main>
+            {% include 'status_cards/services_status.html' %}
+        </div>
+        <div class="row mt-3">
+            {% include 'status_cards/service_logs.html' %}
+        </div>
     </div>
 </div>
 {% endblock %}

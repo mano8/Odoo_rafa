@@ -8,9 +8,6 @@ services:
       - "9000:9000"   # odoo entryPoint
       - "9001:9001"   # hw_proxy entryPoint
     volumes:
-      - ../../docker/certs/ca.pem:/etc/traefik/docker_certs/ca.pem:ro
-      - ../../docker/certs/client-cert.pem:/etc/traefik/docker_certs/client-cert.pem:ro
-      - ../../docker/certs/client-key.pem:/etc/traefik/docker_certs/client-key.pem:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic_conf.yml:/etc/traefik/dynamic_conf.yml:ro
       - ./traefik/certs:/etc/traefik/certs:ro
@@ -62,9 +59,6 @@ services:
       - ../../hw_status/hw_status:/opt/hw_status
       - ./hw_status.env:/opt/hw_status/.env:ro
     userns_mode: "host"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.services.hw-proxy.loadbalancer.server.port=8015"
     logging:
       driver: "journald"
     restart: unless-stopped
@@ -78,9 +72,6 @@ services:
       - ./odoo/config:/etc/odoo
       - ./odoo/addons:/mnt/extra-addons
       - ./odoo/fonts.scss:/usr/lib/python3/dist-packages/odoo/addons/web/static/fonts/fonts.scss
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.services.odoo.loadbalancer.server.port=8069"
     command: >
       bash -c '
         export PGPASSWORD="$DB_PASSWORD"
@@ -94,7 +85,7 @@ services:
         fi
       '
     extra_hosts:
-      - "fonts.odoo.com:192.168.1.146"
+      - "fonts.odoo.com:${HOST_IP:-192.168.1.146}"
     logging:
       driver: "journald"
     depends_on:

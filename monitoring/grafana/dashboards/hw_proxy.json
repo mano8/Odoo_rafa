@@ -175,6 +175,48 @@
       "title": "Print Error Rate",
       "type": "timeseries",
       "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "rate(hw_proxy_print_jobs_total{result=\"error\"}[1m])", "legendFormat": "{{action}}", "refId": "A" }]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 },
+      "id": 14,
+      "title": "System",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 2147483648 },
+              { "color": "green", "value": 10737418240 }
+            ]
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 32 },
+      "id": 15,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Disk Free (root)",
+      "type": "stat",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hw_proxy_disk_free_bytes{mountpoint=\"/\"}", "legendFormat": "free", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "bytes" }
+      },
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 32 },
+      "id": 16,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "title": "Disk Free Over Time",
+      "type": "timeseries",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hw_proxy_disk_free_bytes", "legendFormat": "{{mountpoint}}", "refId": "A" }]
     }
   ],
   "refresh": "10s",
@@ -185,5 +227,5 @@
   "timezone": "browser",
   "title": "hw_proxy — Printer & POS",
   "uid": "hw-proxy-pos",
-  "version": 1
+  "version": 2
 }

@@ -22,6 +22,7 @@ Concurrency model
                       returns the cached status instantly; otherwise
                       acquires the lock and queries the printer.
 """
+
 import asyncio
 import logging
 import time
@@ -45,8 +46,7 @@ logger = logging.getLogger("hw_proxy")
 _SZ_W = (0, 1, 1, 2)
 _SZ_H = (0, 1, 2, 2)
 
-_CMD_CASHDRAWER = b"\x1B\x70\x00\x19\xFA"
-_CMD_PRE_PRINT = b"\x1D\x28\x45\x05\x00\x01\x01\x14"
+_CMD_CASHDRAWER = b"\x1b\x70\x00\x19\xfa"
 # ESC @ — initialize printer (resets all modes to power-on defaults)
 # Prepended to every job so printer state from a previous job never bleeds through.
 _CMD_INIT = b"\x1b\x40"
@@ -116,7 +116,9 @@ class PrinterPool:
         img = EscPosHelper.format_base64_to_image(receipt)
         logger.info(
             "[PrinterPool] receipt image: %dx%d mode=%s print_width=%s",
-            img.width, img.height, img.mode,
+            img.width,
+            img.height,
+            img.mode,
             h.device.print_width if h.device else None,
         )
         # Crop blank rows at the top — Odoo renders the receipt HTML with CSS
@@ -128,18 +130,19 @@ class PrinterPool:
         if h.device and h.device.print_width and img.width != h.device.print_width:
             new_height = int(img.height * h.device.print_width / img.width)
             img = img.resize((h.device.print_width, new_height), Image.LANCZOS)
-            logger.info(
-                "[PrinterPool] resized to: %dx%d", img.width, img.height
-            )
+            logger.info("[PrinterPool] resized to: %dx%d", img.width, img.height)
         image_conf = (
             h.device.image_conf.model_dump(exclude_unset=True)
             if h.device and h.device.image_conf
-            else {"impl": "bitImageRaster", "center": False}
+            else {"impl": "bitImageColumn", "center": False}
         )
         image_conf = {**image_conf, "center": False}
-        # Threshold to 1-bit: avoids Floyd-Steinberg dithering artifacts on
-        # JPEG receipts — text is high-contrast so a clean threshold is better.
-        img = img.convert("L").point(lambda x: 255 if x > 200 else 0).convert("1")
+        logger.info(
+            "[PrinterPool] encoding %dx%d  impl=%s",
+            img.width,
+            img.height,
+            image_conf.get("impl"),
+        )
         d = Dummy()
         # Suppress "media.width.pixel not set, center has no effect" — the
         # Dummy encoder has no profile width; we already force center=False.
@@ -147,9 +150,16 @@ class PrinterPool:
             warnings.filterwarnings("ignore", message=".*media\\.width\\.pixel.*")
             d.image(img, **image_conf)
         d.cut(feed=True)
-        # No _CMD_INIT: USB reconnect in _sync_raw_write resets printer state;
-        # ESC @ would override the density/speed settings that _CMD_PRE_PRINT sets.
-        return _CMD_PRE_PRINT + d.output
+        output = d.output
+        if image_conf.get("impl") == "bitImageColumn":
+            # python-escpos 3.1 hardcodes ESC 3 n=16; patch only the first occurrence
+            # (the actual ESC 3 command) — coincidental matches in column data must not
+            # be touched.  n=21 ≈ 24/203 × 180: closest integer for 1/180" motion unit.
+            output = output.replace(b"\x1b\x33\x10", b"\x1b\x33\x15", 1)
+        # _CMD_INIT (ESC @) resets the printer's ESC/POS command parser to a
+        # known state before the image data so no stale mid-command state
+        # from a previous job corrupts the image stream.
+        return _CMD_INIT + output
 
     # ------------------------------------------------------------------ #
     # Write (sync, serial I/O) — slow ~payload_bytes × 10 / baud         #
@@ -157,29 +167,27 @@ class PrinterPool:
 
     def _sync_raw_write(self, payload: bytes) -> None:
         """Write raw ESC/POS bytes to the serial port.  Retry once on error."""
-        # Close before every write: USB reconnect brings the printer ONLINE so
-        # buffer commands (image data, cut) are executed rather than queued silently.
-        self._close()
+        # Do NOT close/reopen before every write. The unconditional reconnect
+        # caused the PP6800 firmware to flush its buffer and advance paper on
+        # every USB disconnect, printing the tail of the previous job before
+        # the new one started.  _CMD_INIT in the payload resets the parser
+        # state without triggering a USB disconnect side-effect.
         for attempt in range(2):
             try:
                 h = self._ensure()
                 t0 = time.perf_counter()
                 h.printer._raw(payload)
                 # tcdrain: OS kernel buffer → USB device internal FIFO.
+                # tcdrain on Linux USB-CDC/ACM blocks until the USB device
+                # has serialised all bytes to the printer UART, so flush()
+                # already provides the full drain wait.  No extra sleep needed.
                 h.printer.device.flush()
-                # The USB-CDC/ACM device still has to drain its FIFO to the
-                # printer UART at 115 200 baud (~4.86 s for 56 KB). If we
-                # release the lock now, the next job's _close() disconnects the
-                # USB device mid-transmission, corrupting sequential prints.
-                # Sleep here (while holding the lock) so _close() only fires
-                # after the UART has physically delivered all bytes.
-                baud = getattr(h.printer.device, "baudrate", 115_200)
-                time.sleep(len(payload) * 10 / baud)
                 dur = time.perf_counter() - t0
                 serial_write_duration_seconds.observe(dur)
                 logger.info(
                     "[PrinterPool] serial_write=%.3fs  payload=%d bytes",
-                    dur, len(payload),
+                    dur,
+                    len(payload),
                 )
                 return
             except Exception as e:
@@ -226,9 +234,10 @@ class PrinterPool:
         for attempt in range(2):
             try:
                 h = self._ensure()
+                is_online = h.printer.is_online()
                 code = h.printer.paper_status()
                 paper = {2: "ok", 1: "near_end", 0: "no_paper"}.get(code, "unknown")
-                return {"is_online": code in (0, 1, 2), "paper_status": paper}
+                return {"is_online": is_online, "paper_status": paper}
             except Exception as e:
                 if attempt == 0:
                     self._reconnect()
@@ -307,6 +316,60 @@ class PrinterPool:
                 return sz
         return 1
 
+    @staticmethod
+    def _wrap_row(left: str, right: str, w: int) -> list[str]:
+        """Word-wrap a label/price row into w-char print lines.
+
+        Only the left (label) wraps across as many lines as needed at full
+        width w.  The right (price) is right-justified on the vertically
+        centred label line — (N-1)//2 for N label lines — so it appears
+        visually centred beside the wrapped label block.
+        Font size never changes across lines.
+        """
+        last_w = max(1, w - len(right) - 1) if right else w
+
+        # Pass 1: word-wrap label to full width to determine line count.
+        chunks: list[str] = []
+        remaining = left.strip()
+        while remaining:
+            if len(remaining) <= w:
+                chunks.append(remaining)
+                break
+            chunk = remaining[:w]
+            bp = chunk.rfind(" ")
+            if bp <= 0:
+                bp = w
+            chunks.append(remaining[:bp].rstrip())
+            remaining = remaining[bp:].lstrip()
+        if not chunks:
+            chunks = [""]
+
+        # Price line: vertically centred index.
+        pi = (len(chunks) - 1) // 2
+
+        # If the centred line is too wide to fit the price, split it.
+        if right and len(chunks[pi]) > last_w:
+            piece = chunks[pi]
+            sub = piece[:last_w]
+            bp = sub.rfind(" ")
+            if bp <= 0:
+                bp = last_w
+            rest = piece[bp:].lstrip()
+            chunks[pi : pi + 1] = [piece[:bp].rstrip(), rest] if rest else [piece[:bp].rstrip()]
+
+        # Build output: label only on all lines except pi, which gets the price.
+        result: list[str] = []
+        for i, chunk in enumerate(chunks):
+            if i == pi and right:
+                gap = w - len(chunk) - len(right)
+                if gap < 1:
+                    chunk = chunk[:last_w]
+                    gap = 1
+                result.append(chunk + " " * gap + right)
+            else:
+                result.append(chunk)
+        return result
+
     # ESC t 19 — select CP858 code page (has € at 0xD5, superset of PC437)
     _CMD_CP858 = b"\x1b\x74\x13"
 
@@ -361,10 +424,10 @@ class PrinterPool:
             elif line.t == "row":
                 left = line.l or ""
                 right = line.r or ""
-                actual_sz = self._fit_sz(len(left) + len(right) + 1, max_line_sz, W)
+                actual_sz = max(1, min(3, max_line_sz))
                 w = W // _SZ_W[actual_sz]
-                # Row lines (product name/price, totals) are always bold for
-                # readability; the DOM scan bold flag is ignored here.
+                # Row lines are always bold; label wraps to multiple lines
+                # if needed, price right-justified on the centred label line.
                 d.set(
                     align="left",
                     bold=True,
@@ -372,16 +435,13 @@ class PrinterPool:
                     height=_SZ_H[actual_sz],
                     custom_size=True,
                 )
-                gap = w - len(left) - len(right)
-                if gap < 1:
-                    left = left[: max(0, w - len(right) - 1)]
-                    gap = 1
-                d._raw(self._txt(left + " " * gap + right + "\n"))
+                for row_line in self._wrap_row(left, right, w):
+                    d._raw(self._txt(row_line + "\n"))
 
         if data.cut:
             d.cut(feed=True)
 
-        return _CMD_INIT + _CMD_PRE_PRINT + d.output
+        return _CMD_INIT + d.output
 
     async def print_receipt_json(self, data: PrintReceiptJsonRequest) -> bool:
         """Encode structured receipt (~5 ms) then fire-and-forget serial write."""
@@ -391,9 +451,7 @@ class PrinterPool:
             asyncio.create_task(self._background_write(_CMD_CASHDRAWER))
         return True
 
-    async def default_action(
-        self, action: str, receipt: Optional[str] = None
-    ) -> bool:
+    async def default_action(self, action: str, receipt: Optional[str] = None) -> bool:
         if action == "print_receipt":
             return await self.print_receipt(receipt)
         if action == "cut_receipt":

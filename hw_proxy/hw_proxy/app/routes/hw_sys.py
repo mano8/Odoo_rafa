@@ -1,16 +1,23 @@
 """
 Api routes for hw_sys module
 """
+import asyncio
 import logging
 import subprocess
 import psutil
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse, PlainTextResponse
 from hw_proxy.core.deps import get_printer_pool
 from hw_proxy.core.printer_pool import PrinterPool
 from hw_proxy.schemas.hw_sys import JournalQuery
+from hw_proxy.schemas.receipt import PrintReceiptJsonRequest, ReceiptLine
 from hw_proxy.tools.utils import HwUtils
 
+_KNOWN_SERVICES = {
+    "hw_proxy", "odoo-pos", "monitoring",
+    "traefik", "fiesta_db", "hw_status_service", "fiesta_odoo",
+    "grafana", "prometheus",
+}
 
 logger = logging.getLogger("hw_proxy")
 
@@ -136,7 +143,20 @@ async def get_printer_status(pool: PrinterPool = Depends(get_printer_pool)):
 @router.get("/print_ticket")
 async def print_ticket(pool: PrinterPool = Depends(get_printer_pool)):
     try:
-        await pool.cut()
+        req = PrintReceiptJsonRequest(
+            lines=[
+                ReceiptLine(t="text", v="*** TEST PRINT ***", c="center", b=True),
+                ReceiptLine(t="div"),
+                ReceiptLine(t="row", l="hw_proxy", r="OK"),
+                ReceiptLine(t="row", l="Printer", r="OK"),
+                ReceiptLine(t="div"),
+                ReceiptLine(t="text", v="Test OK", c="center"),
+            ],
+            char_size=1,
+            cut=True,
+            open_cashdrawer=False,
+        )
+        await pool.print_receipt_json(req)
         return JSONResponse({"success": True})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -149,3 +169,43 @@ async def open_cashdrawer(pool: PrinterPool = Depends(get_printer_pool)):
         return JSONResponse({"success": True})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/logs", response_class=PlainTextResponse)
+async def get_service_logs(
+    service: str = Query(..., description="Service name"),
+    lines: int = Query(100, ge=1, le=500, description="Max lines to return"),
+    level: str = Query("warning", description="Log level: error, warning, info, all"),
+) -> str:
+    """Return recent logs for a service via get_logs.sh (journald)."""
+    if service not in _KNOWN_SERVICES:
+        return f"[Unknown service: {service}]"
+    try:
+        result = await asyncio.to_thread(
+            HwUtils.run_bash_script, "get_logs.sh", [service, str(lines), level]
+        )
+        return result or f"[No logs found for {service} at level={level}]"
+    except RuntimeError as e:
+        return f"[Error fetching logs for {service}]: {e}"
+
+
+@router.get("/services/status")
+async def get_services_status() -> dict:
+    """Return running status for all managed services via get_services_status.sh."""
+    try:
+        output = await asyncio.to_thread(HwUtils.run_bash_script, "get_services_status.sh")
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+    services = []
+    for line in output.splitlines():
+        parts = line.strip().split()
+        if len(parts) == 3:
+            name, svc_type, status = parts
+            services.append({
+                "name": name,
+                "type": svc_type,
+                "status": status,
+                "active": status in ("active", "running"),
+            })
+    return {"services": services}

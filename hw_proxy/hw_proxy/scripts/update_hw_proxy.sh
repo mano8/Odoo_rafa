@@ -1,101 +1,83 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# deploy.sh
+# update_hw_proxy.sh
 #
-#  This script must be run as root (e.g. via `sudo deploy.sh`).
-#  It will:
-#    1) Ensure /opt/hw_proxy exists (owned by zepos, mode 755).
-#    2) Create a Python venv under /opt/hw_proxy/.venv (as user "zepos").
-#    3) rsync the hw_proxy source into /opt/hw_proxy/hw_proxy (as "zepos").
-#    4) Verify Internet → PyPI is reachable.
-#    5) Install/upgrade Python requirements inside that venv (as "zepos").
-#    6) Lock down ownership/permissions of .venv and application code.
-#    7) Ensure any “scripts/” folder is owned by zepos and scripts are 750.
-#
-#  Failure in any step will abort immediately (due to `set -euo pipefail`).
+#  Must be run as root (e.g. via `sudo update_hw_proxy.sh`).
+#  Steps:
+#    1) Ensure /opt/hw_proxy exists (owned by HW_USER, mode 755).
+#    2) Create a Python venv under /opt/hw_proxy/.venv.
+#    3) rsync the hw_proxy source into /opt/hw_proxy/hw_proxy.
+#    4) Install Python requirements — wheelhouse if present, else PyPI.
+#    5) Lock down ownership/permissions of .venv and application code.
+#    6) Ensure scripts/ are owned by HW_USER with mode 750.
 #
 #  Usage:
-#    sudo /opt/Odoo_rafa/hw_proxy/deploy.sh
+#    sudo /opt/Odoo_rafa/hw_proxy/hw_proxy/scripts/update_hw_proxy.sh
 #
-# ------------------------------------------------------------------------------
+# ==============================================================================
 set -euo pipefail
 shopt -s inherit_errexit 2>/dev/null || true
 umask 022
 
 # ------------------------------------------------------------------------------
-# 1) Configuration variables
+# Configuration
 # ------------------------------------------------------------------------------
 REPO_DIR="/opt/Odoo_rafa"
 SRC_BASE="$REPO_DIR/hw_proxy"
 APP_SRC_DIR="$SRC_BASE/hw_proxy"
 REQUIREMENTS_FILE="$APP_SRC_DIR/requirements.txt"
+WHEELHOUSE_DIR="$SRC_BASE/wheelhouse"
 
 DST_BASE="/opt/hw_proxy"
 APP_DST_DIR="$DST_BASE/hw_proxy"
 VENV_DIR="$DST_BASE/.venv"
 
 ADMIN_USER="${HW_USER:-hw_user}"
-SCRIPT_SUBDIR="scripts"
-SCRIPTS_DIR="$APP_DST_DIR/$SCRIPT_SUBDIR"
+SCRIPTS_DIR="$APP_DST_DIR/scripts"
 
 # ------------------------------------------------------------------------------
-# 2) Helpers
+# Helpers
 # ------------------------------------------------------------------------------
-fail () {
-    echo >&2 "ERROR: $*"
-    exit 1
-}
-
-info () {
-    echo ">> $*"
-}
+fail() { echo >&2 "ERROR: $*"; exit 1; }
+info() { echo ">> $*"; }
 
 # ------------------------------------------------------------------------------
-# 3) Must be run as root
+# Must run as root
 # ------------------------------------------------------------------------------
-if [ "$(id -u)" -ne 0 ]; then
-    fail "This script must be run as root. Try 'sudo $0'."
-fi
+[ "$(id -u)" -eq 0 ] || fail "This script must be run as root. Try 'sudo $0'."
 
 # ------------------------------------------------------------------------------
-# 4) Verify source directory and requirements.txt
+# Verify source
 # ------------------------------------------------------------------------------
-[ -d "$APP_SRC_DIR" ] \
-    || fail "Source directory '$APP_SRC_DIR' does not exist."
-
-[ -f "$REQUIREMENTS_FILE" ] \
-    || fail "Requirements file '$REQUIREMENTS_FILE' not found."
+[ -d "$APP_SRC_DIR" ]    || fail "Source directory '$APP_SRC_DIR' does not exist."
+[ -f "$REQUIREMENTS_FILE" ] || fail "Requirements file '$REQUIREMENTS_FILE' not found."
 
 # ------------------------------------------------------------------------------
-# 5) Step 1 – Ensure /opt/hw_proxy exists (owner=zepos, mode=755)
+# Step 1 — Ensure /opt/hw_proxy exists
 # ------------------------------------------------------------------------------
-info "Step 1: Ensuring '$DST_BASE' exists and is owned by $ADMIN_USER…"
-if [ ! -d "$DST_BASE" ]; then
-    mkdir -p "$DST_BASE"
-fi
+info "Step 1: Ensuring '$DST_BASE' exists (owner=$ADMIN_USER)…"
+mkdir -p "$DST_BASE"
 chown -R "$ADMIN_USER":"$ADMIN_USER" "$DST_BASE"
 chmod 755 "$DST_BASE"
 
 # ------------------------------------------------------------------------------
-# 6) Step 2 – Create Python venv under /opt/hw_proxy/.venv (as zepos)
+# Step 2 — Create Python venv
 # ------------------------------------------------------------------------------
 if [ ! -d "$VENV_DIR" ]; then
-    info "Step 2: Creating Python virtualenv at '$VENV_DIR' (as $ADMIN_USER)…"
+    info "Step 2: Creating virtualenv at '$VENV_DIR'…"
     runuser -u "$ADMIN_USER" -- python3 -m venv "$VENV_DIR"
 else
-    info "Step 2: Virtualenv already exists at '$VENV_DIR'; skipping creation."
+    info "Step 2: Virtualenv already exists — skipping creation."
 fi
-
-info "       Securing venv permissions…"
 chown -R "$ADMIN_USER":"$ADMIN_USER" "$VENV_DIR"
 find "$VENV_DIR" -type d -exec chmod 755 {} \;
 find "$VENV_DIR" -type f -exec chmod 644 {} \;
 find "$VENV_DIR/bin" -type f -exec chmod 755 {} \;
 
 # ------------------------------------------------------------------------------
-# 7) Step 3 – Rsync source → /opt/hw_proxy/hw_proxy (as zepos)
+# Step 3 — Rsync source
 # ------------------------------------------------------------------------------
-info "Step 3: Syncing application code from '$APP_SRC_DIR' → '$APP_DST_DIR' (as $ADMIN_USER)…"
+info "Step 3: Syncing source '$APP_SRC_DIR' → '$APP_DST_DIR'…"
 mkdir -p "$APP_DST_DIR"
 chown "$ADMIN_USER":"$ADMIN_USER" "$APP_DST_DIR"
 runuser -u "$ADMIN_USER" -- rsync -a --delete \
@@ -104,42 +86,42 @@ runuser -u "$ADMIN_USER" -- rsync -a --delete \
     "$APP_SRC_DIR"/ "$APP_DST_DIR"/
 
 # ------------------------------------------------------------------------------
-# 8) Step 4 – Check Internet connectivity to PyPI before pip install
+# Step 4 — Install Python requirements (wheelhouse first, then PyPI)
 # ------------------------------------------------------------------------------
-info "Step 4: Checking connectivity to PyPI.org…"
-if ! curl -sSf --connect-timeout 5 https://pypi.org/ >/dev/null 2>&1; then
-    echo "WARNING: Unable to reach https://pypi.org — skipping pip install."
-    echo "         Pre-install dependencies manually or use a wheelhouse."
-    exit 0
+if [ -d "$WHEELHOUSE_DIR" ] && [ -n "$(ls -A "$WHEELHOUSE_DIR" 2>/dev/null)" ]; then
+    info "Step 4: Wheelhouse found at '$WHEELHOUSE_DIR' — installing offline…"
+    runuser -u "$ADMIN_USER" -- "$VENV_DIR/bin/python" -m pip install \
+        --no-index \
+        --find-links="$WHEELHOUSE_DIR" \
+        -r "$REQUIREMENTS_FILE"
+else
+    info "Step 4: No wheelhouse found — checking PyPI connectivity…"
+    if ! curl -sSf --connect-timeout 5 https://pypi.org/ >/dev/null 2>&1; then
+        fail "No wheelhouse and PyPI unreachable. Run 'make -C $REPO_DIR/docker_offline wheels' first."
+    fi
+    info "        PyPI reachable — installing from PyPI…"
+    runuser -u "$ADMIN_USER" -- "$VENV_DIR/bin/python" -m pip install \
+        --upgrade -r "$REQUIREMENTS_FILE"
 fi
 
 # ------------------------------------------------------------------------------
-# 9) Step 5 – Install/upgrade requirements inside venv (as zepos)
+# Step 5 — Secure application code
 # ------------------------------------------------------------------------------
-info "Step 5: Installing/upgrading Python packages from '$REQUIREMENTS_FILE'…"
-runuser -u "$ADMIN_USER" -- "$VENV_DIR/bin/python" -m pip install --upgrade -r "$REQUIREMENTS_FILE"
-
-# ------------------------------------------------------------------------------
-# 10) Step 6 – Secure application code ownership/permissions
-# ------------------------------------------------------------------------------
-info "Step 6: Locking down ownership and permissions of application code…"
+info "Step 5: Locking down ownership and permissions…"
 chown -R "$ADMIN_USER":"$ADMIN_USER" "$APP_DST_DIR"
 find "$APP_DST_DIR" -type d -exec chmod 755 {} \;
 find "$APP_DST_DIR" -type f -exec chmod 644 {} \;
 
 # ------------------------------------------------------------------------------
-# 11) Step 7 – Ensure scripts/ are owned by zepos with mode 750
+# Step 6 — Harden scripts/
 # ------------------------------------------------------------------------------
 if [ -d "$SCRIPTS_DIR" ]; then
-    info "Step 7: Hardening '$SCRIPTS_DIR' (owner=$ADMIN_USER, mode=750)…"
+    info "Step 6: Hardening '$SCRIPTS_DIR' (mode=750)…"
     chown -R "$ADMIN_USER":"$ADMIN_USER" "$SCRIPTS_DIR"
     find "$SCRIPTS_DIR" -type f -name "*.sh" -exec chmod 750 {} \;
 else
-    info "Step 7: No '$SCRIPTS_DIR' directory found; skipping."
+    info "Step 6: No scripts/ directory found — skipping."
 fi
 
-# ------------------------------------------------------------------------------
-# 12) Done
-# ------------------------------------------------------------------------------
 info "Deployment completed successfully."
 exit 0

@@ -18,7 +18,8 @@ WORKDIR /opt
 
 RUN mkdir -p hw_proxy
 COPY --chown=appuser:appuser ./hw_proxy ./hw_proxy
-RUN chown -R appuser:appuser ./hw_proxy
+RUN chown -R appuser:appuser ./hw_proxy && \
+    chmod +x /opt/hw_proxy/scripts/*.sh
 
 COPY ./hw_proxy/requirements-docker-dev.txt .
 COPY ./wheelhouse_dev ./wheelhouse

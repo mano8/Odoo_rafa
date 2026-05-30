@@ -57,7 +57,7 @@ All components run locally in Docker containers, except for the optional **`hw_p
 
    * `/` → `fiesta_odoo:8069` (Odoo)
    * `/hw_status` → `hw_status_service:8015`
-   * `/hw_proxy` → external host `192.168.1.146:9002` (via Traefik TLS termination on port `9001`)
+   * `/hw_proxy` → host service `10.254.254.1:9002` (management interface, via Traefik TLS termination on port `9001`)
 2. **Odoo POS** communicates securely with `hw_proxy` for direct printing.
 3. **hw_status_service** offers a browser dashboard for printer/system monitoring and test printing.
 4. **PostgreSQL** stores Odoo data; all services run locally under the `odoo_network`.
@@ -124,10 +124,19 @@ make up             # generate odoo.conf, fix volumes, start all containers
 For day-to-day operations:
 
 ```bash
-make update         # git pull + redeploy hw_proxy + rebuild containers
-make status         # show status of all systemd services and Docker containers
-make backup         # trigger a PostgreSQL database backup
-make logs           # follow all container logs
+make stack-up               # rebuild images and start the full stack (online)
+make stack-up OFFLINE=1     # same but vendors wheels + loads image tarballs first (air-gapped)
+make update-hw-proxy        # pull main + redeploy hw_proxy venv + restart service
+make update-odoo-addon      # run addon update script + restart Odoo container
+make update                 # full update: hw_proxy + Docker rebuild + compose restart
+make status                 # show status of all systemd services and Docker containers
+make backup                 # trigger a PostgreSQL database backup (pg_dump)
+make backup-volumes         # snapshot pgdata + filestore → /opt/backups/odoo_rafa/ (max 5, rotated)
+make restore-volumes BACKUP=<path>  # restore from a snapshot directory
+make monitoring-reload      # reload Prometheus config (SIGHUP) + restart Grafana
+make monitoring-reload-prometheus  # reload prometheus.yml only — zero downtime
+make monitoring-reload-grafana     # restart Grafana to apply provisioning/dashboard changes
+make logs                   # follow all container logs
 ```
 
 > The subsequent sections below describe each step in detail for reference or manual setup.
@@ -315,31 +324,25 @@ Replaces the raster PNG receipt path with a structured **JSON → ESC/POS** pipe
 
 ### pos_json_printer Update — Step-by-step
 
-After merging changes to `main`, deploy to the server with these steps **in order**:
+After merging changes to `main`, deploy to the server:
 
 ```bash
-# 1. Pull the latest code from GitHub
-cd /opt/Odoo_rafa
-sudo git pull origin main
-
-# 2. Copy the updated addon files into the Odoo addons directory
-sudo update_addon.sh
-
-# 3. Restart the Odoo container so it detects the new module version
-sudo docker restart odoo_prod-fiesta_odoo-1
+make update-odoo-addon
 ```
 
-> **Why `docker restart` and not `odoo -u`?**
-> On restart Odoo automatically detects the version change in `__manifest__.py` and upgrades the module. No manual `-u pos_json_printer` command is needed.
+This runs `update_addon.sh` then restarts the Odoo container. On restart Odoo detects
+the version change in `__manifest__.py` and upgrades the module automatically — no
+manual `-u pos_json_printer` needed.
 
 ### hw_proxy Update
 
 If `hw_proxy` source files also changed:
 
 ```bash
-sudo update_hw_proxy.sh
-sudo systemctl restart hw_proxy
+make update-hw-proxy
 ```
+
+Pulls `main`, re-syncs the venv via `update_hw_proxy.sh`, and restarts `hw_proxy`.
 
 ---
 
@@ -364,7 +367,22 @@ docker compose up -d
 ### Database Backup
 
 ```bash
-docker exec -t fiesta_db pg_dump -U odoo odoo > backup.sql
+# pg_dump only (logical SQL dump via hw_proxy script):
+make backup
+
+# Full volume snapshot — PostgreSQL data directory + Odoo filestore:
+make backup-volumes
+# Creates /opt/backups/odoo_rafa/<datetime>/ with pgdata.tar.gz + odoo_data.tar.gz.
+# Keeps the last 5 snapshots (oldest deleted automatically).
+# DB and Odoo stop for ~30 s during the snapshot; all other services keep running.
+```
+
+### Disaster Recovery — Restore from Snapshot
+
+```bash
+make restore-volumes BACKUP=/opt/backups/odoo_rafa/2026-05-30_14-00-00
+# Stops all stacks, extracts archives with original ownership preserved,
+# re-applies userns-remap ownership, then restarts both stacks.
 ```
 
 ---
