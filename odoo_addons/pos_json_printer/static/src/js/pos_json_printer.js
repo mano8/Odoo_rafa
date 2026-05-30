@@ -2,7 +2,12 @@
 
 import { PosStore } from "@point_of_sale/app/store/pos_store";
 import { OrderReceipt } from "@point_of_sale/app/screens/receipt_screen/receipt/order_receipt";
+import { SaleDetailsButton } from "@point_of_sale/app/navbar/sale_details_button/sale_details_button";
 import { patch } from "@web/core/utils/patch";
+import { renderToElement } from "@web/core/utils/render";
+import { formatDateTime } from "@web/core/l10n/dates";
+
+const { DateTime } = luxon;
 
 // ─── hw_proxy helpers ─────────────────────────────────────────────────────────
 
@@ -305,6 +310,45 @@ patch(PosStore.prototype, {
             console.warn("[pos_json_printer] DOM scan failed, falling back");
         }
         return await super.printReceipt(options);
+    },
+});
+
+// ─── SaleDetailsButton patch (session / Z-report) ─────────────────────────────
+//
+// The "Print" button inside ClosePosPopup calls hardwareProxy.printer.printReceipt()
+// directly (raster path).  We intercept at the component level so that the same
+// JSON→ESC/POS pipeline and char_size setting apply to the session report.
+
+patch(SaleDetailsButton.prototype, {
+    async onClick() {
+        if (!this.pos.config.use_json_printer) {
+            return await super.onClick();
+        }
+        try {
+            const saleDetails = await this.pos.data.call(
+                "report.point_of_sale.report_saledetails",
+                "get_sale_details",
+                [false, false, false, [this.pos.session.id]]
+            );
+            const report = renderToElement("point_of_sale.SaleDetailsReport", {
+                ...saleDetails,
+                date: formatDateTime(DateTime.now()),
+                pos: this.pos,
+                formatCurrency: this.pos.env.utils.formatCurrency,
+            });
+            const lines = _domToLines(report);
+            if (!lines.length) throw new Error("empty DOM");
+            const ok = await _postJson(_hwUrl(this.pos.config), {
+                lines,
+                char_size: this.pos.config.receipt_char_size || 1,
+                cut: true,
+                open_cashdrawer: false,
+            });
+            if (!ok) throw new Error("post failed");
+        } catch (e) {
+            console.warn("[pos_json_printer] SaleDetails JSON failed, falling back:", e);
+            return await super.onClick();
+        }
     },
 });
 
