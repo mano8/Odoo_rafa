@@ -3,365 +3,478 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Odoo 18.0 IoT Box Interface - Bootstrap 5 (Cleaned)</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" xintegrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f8f9fa;
-            padding-top: 1rem;
-            padding-bottom: 1rem;
-        }
-        .card {
-            margin-bottom: 1.5rem;
-        }
-        .card.h-100 {
-            display: flex;
-            flex-direction: column;
-        }
-        .card.h-100 > .card-body {
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-        }
-        .log-output-container {
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-            min-height: 0;
-        }
-        #logOutput {
-            flex-grow: 1;
-            overflow-y: auto;
-            min-height: 100px;
-            background-color: #e9ecef;
-            padding: 0.75rem;
-            border-radius: 0.25rem;
-            font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-            font-size: 0.875em;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-        .stty-output-preview {
-            background-color: #e9ecef;
-            padding: 0.75rem;
-            border-radius: 0.25rem;
-            font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-            font-size: 0.875em;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-        .status-dot {
-            display: inline-block;
-            width: 0.75rem;
-            height: 0.75rem;
-            border-radius: 50%;
-            margin-right: 0.5rem;
-        }
-        .status-green { background-color: #198754; }
-        .status-yellow { background-color: #ffc107; }
-        .status-red { background-color: #dc3545; }
-        .status-gray { background-color: #6c757d; }
-        .modal-custom { display: none; position: fixed; z-index: 1055; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
-        .modal-custom-content { background-color: #fff; margin: 5% auto; padding: 20px; border: 1px solid rgba(0,0,0,.2); border-radius: 0.3rem; box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15); }
-        .modal-custom-content.modal-sm-custom { max-width: 500px; margin-top: 10%; }
-        .modal-custom-content.modal-lg-custom { max-width: 1000px; }
-        #contentModalBody { max-height: 70vh; white-space: pre-wrap; word-break: break-all; background-color: #e9ecef; border-radius: 0.25rem; font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-        .modal-header-custom { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid #dee2e6; margin-bottom: 1rem; }
-        .modal-title-custom { margin-bottom: 0; line-height: 1.5; font-size: 1.25rem; }
-        .close-custom { font-size: 1.25rem; font-weight: 700; line-height: 1; color: #000; text-shadow: 0 1px 0 #fff; opacity: .5; background-color: transparent; border: 0; cursor: pointer; }
-        .close-custom:hover { opacity: .75; }
-    </style>
+    <title>IoT Box Interface — Odoo 18.0</title>
+    <link href="{{ url_for('static', path='css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', path='fontawesome/css/fontawesome.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', path='fontawesome/css/solid.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', path='css/main.css') }}" rel="stylesheet">
 </head>
 <body>
-    <div class="container-fluid">
-        <header class="mb-4">
-            <div class="d-flex justify-content-between align-items-center">
-                <h1 class="h3 fw-bold text-dark">Odoo 18.0 IoT Box Interface</h1>
-                <div>
-                    <button id="btn-shutdown" class="btn btn-danger me-2">
-                        <i class="fas fa-power-off me-1"></i> Shutdown
-                    </button>
-                    <button id="btn-reboot" class="btn btn-danger">
-                        <i class="fas fa-sync-alt me-1"></i> Reboot
-                    </button>
-                </div>
+<div class="container-fluid">
+    <header class="mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-3">
+                <h1 class="h3 fw-bold text-dark mb-0">IoT Box Interface — Odoo 18.0</h1>
+                <a href="{{ odoo_url }}" target="_blank" rel="noopener noreferrer"
+                   class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
+                    <img src="{{ url_for('static', path='img/odoo_logo.svg') }}" alt="" height="18">
+                    <span>Odoo</span>
+                </a>
+                <a href="{{ grafana_url }}" target="_blank" rel="noopener noreferrer"
+                   class="btn btn-sm btn-outline-warning d-flex align-items-center gap-1">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Grafana</span>
+                </a>
             </div>
-        </header>
-
-        <main class="row align-items-stretch">
-            <div class="col-lg-4 d-flex flex-column">
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h2 class="card-title h5 mb-3">Device Actions</h2>
-                        <button id="btnPrintDummy" class="btn btn-primary w-100 mb-2">
-                            <i class="fas fa-print me-2"></i>Print Dummy Ticket
-                        </button>
-                        <button id="btnOpenCashDrawer" class="btn btn-primary w-100">
-                            <i class="fas fa-cash-register me-2"></i>Open Cash Drawer
-                        </button>
-                        <div id="actionStatus" class="mt-3 text-muted small"></div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-body">
-                        <h2 class="card-title h5 mb-3">Device Status</h2>
-                        <p><span id="printerStatusDot" class="status-dot status-gray"></span>Printer Status: <strong id="printerStatusText">Unknown</strong></p>
-                        <p><span id="paperStatusDot" class="status-dot status-gray"></span>Paper Status: <strong id="paperStatusText">Unknown</strong></p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-4 d-flex flex-column">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h2 class="card-title h5 mb-3">Port Information</h2>
-                        <div id="portInfoContent" class="d-flex flex-column flex-grow-1">
-                            <p class="text-muted">Fetching port information...</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-4 d-flex flex-column">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h2 class="card-title h5 mb-3">System Logs</h2>
-                        <div class="mb-3">
-                            <label for="selectJournal" class="form-label small fw-medium">Journal:</label>
-                            <select id="selectJournal" class="form-select form-select-sm">
-                                <option value="iotbox.service">iotbox.service</option>
-                                <option value="kernel">kernel</option>
-                                <option value="systemd">systemd</option>
-                                <option value="all">All Journals</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="selectTimeRange" class="form-label small fw-medium">Time Range:</label>
-                            <select id="selectTimeRange" class="form-select form-select-sm">
-                                <option value="5m">Last 5 minutes</option>
-                                <option value="15m">Last 15 minutes</option>
-                                <option value="1h">Last 1 hour</option>
-                                <option value="today">Today</option>
-                                <option value="all">All Time</option>
-                            </select>
-                        </div>
-                        <button id="btnFetchLogs" class="btn btn-secondary w-100 mb-3">
-                            <i class="fas fa-file-alt me-2"></i>Fetch Logs
-                        </button>
-                        <div class="log-output-container">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h3 class="h6 mb-0">Log Output:</h3>
-                                <button id="btnViewFullLog" class="btn btn-sm btn-outline-secondary" style="display: none;">
-                                    <i class="fas fa-expand-arrows-alt me-1"></i>View Full
-                                </button>
-                            </div>
-                            <pre id="logOutput">No logs fetched yet.</pre>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <div id="confirmationModal" class="modal-custom">
-        <div class="modal-custom-content modal-sm-custom text-center">
-            <p id="modalMessage" class="mb-4 h5">Are you sure?</p>
             <div>
-                <button id="modalConfirmBtn" class="btn btn-danger mx-2">Confirm</button>
-                <button id="modalCancelBtn" class="btn btn-secondary mx-2">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="contentModal" class="modal-custom">
-        <div class="modal-custom-content modal-lg-custom">
-            <div class="modal-header-custom">
-                <h2 id="contentModalTitle" class="modal-title-custom">Content</h2>
-                <button id="contentModalCloseBtn" type="button" class="close-custom" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
+                <button id="btn-shutdown" class="btn btn-danger me-2">
+                    <i class="fas fa-power-off me-1"></i> Shutdown
+                </button>
+                <button id="btn-reboot" class="btn btn-danger">
+                    <i class="fas fa-sync-alt me-1"></i> Reboot
                 </button>
             </div>
-            <pre id="contentModalBody" class="p-3"></pre>
+        </div>
+    </header>
+
+    <main class="row align-items-stretch">
+        <!-- Column 1: Actions + Status -->
+        <div class="col-lg-4 d-flex flex-column">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h2 class="card-title h5 mb-3">Device Actions</h2>
+                    <button id="btnPrintDummy" class="btn btn-primary w-100 mb-2">
+                        <i class="fas fa-print me-2"></i>Print Test Ticket
+                    </button>
+                    <button id="btnOpenCashDrawer" class="btn btn-primary w-100">
+                        <i class="fas fa-cash-register me-2"></i>Open Cash Drawer
+                    </button>
+                    <div id="actionStatus" class="mt-3 text-muted small"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2 class="card-title h5 mb-0">Device Status</h2>
+                        <div class="spinner-border spinner-border-sm text-primary loading-spinner" role="status" id="deviceStatusLoader" style="display:none;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <p><span id="connectionStatusDot" class="status-dot status-gray"></span>Connection: <strong id="connectionStatusText">Unknown</strong></p>
+                    <p><span id="printerStatusDot" class="status-dot status-gray"></span>Printer: <strong id="printerStatusText">Unknown</strong></p>
+                    <p><span id="paperStatusDot" class="status-dot status-gray"></span>Paper: <strong id="paperStatusText">Unknown</strong></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 2: Port Info -->
+        <div class="col-lg-4 d-flex flex-column">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2 class="card-title h5 mb-0">Port Information</h2>
+                        <div class="spinner-border spinner-border-sm text-primary loading-spinner" role="status" id="portInfoLoader" style="display:none;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <div id="portInfoContent" class="d-flex flex-column flex-grow-1">
+                        <p class="text-muted">Fetching port information...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 3: Logs -->
+        <div class="col-lg-4 d-flex flex-column">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <h2 class="card-title h5 mb-0">Error Logs</h2>
+                        <div class="d-flex align-items-center gap-2">
+                            <label for="selectLogService" class="form-label small fw-medium mb-0">Service:</label>
+                            <select id="selectLogService" class="form-select form-select-sm" style="width:auto;min-width:160px;">
+                                <optgroup label="System (systemd)">
+                                    <option value="hw_proxy">hw_proxy</option>
+                                    <option value="odoo-pos">odoo-pos</option>
+                                    <option value="monitoring">monitoring</option>
+                                </optgroup>
+                                <optgroup label="Docker (odoo_prod)">
+                                    <option value="fiesta_odoo">fiesta_odoo (Odoo)</option>
+                                    <option value="fiesta_db">fiesta_db (Postgres)</option>
+                                    <option value="traefik">traefik</option>
+                                    <option value="hw_status_service">hw_status_service</option>
+                                </optgroup>
+                                <optgroup label="Docker (monitoring)">
+                                    <option value="grafana">grafana</option>
+                                    <option value="prometheus">prometheus</option>
+                                </optgroup>
+                            </select>
+                            <button id="btnRefreshServiceLogs" class="btn btn-sm btn-outline-secondary" title="Refresh logs">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                            <button id="btnExpandServiceLogs" class="btn btn-sm btn-outline-secondary" title="Expand" style="display:none;">
+                                <i class="fas fa-expand-arrows-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="log-output-container d-flex flex-column flex-grow-1">
+                        <pre id="logOutputService" class="service-log-pre service-log-fullwidth">Select a service and press Refresh.</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Row 2: Services Status -->
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2 class="card-title h5 mb-0">Services Status</h2>
+                        <div class="d-flex align-items-center gap-2">
+                            <span id="servicesLastUpdate" class="text-muted small"></span>
+                            <button id="btnRefreshServices" class="btn btn-sm btn-outline-secondary" title="Refresh">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="servicesStatusGrid" class="d-flex flex-wrap gap-2">
+                        <p class="text-muted small">Loading services status...</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" xintegrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<!-- Confirmation modal -->
+<div id="confirmationModal" class="modal-custom">
+    <div class="modal-custom-content modal-sm-custom text-center">
+        <p id="modalMessage" class="mb-4 h5">Are you sure?</p>
+        <div>
+            <button id="modalConfirmBtn" class="btn btn-danger mx-2">Confirm</button>
+            <button id="modalCancelBtn" class="btn btn-secondary mx-2">Cancel</button>
+        </div>
+    </div>
+</div>
 
-    <script>
-        const btnPrintDummy = document.getElementById('btnPrintDummy');
-        const btnOpenCashDrawer = document.getElementById('btnOpenCashDrawer');
-        const actionStatus = document.getElementById('actionStatus');
-        const printerStatusDot = document.getElementById('printerStatusDot');
-        const printerStatusText = document.getElementById('printerStatusText');
-        const paperStatusDot = document.getElementById('paperStatusDot');
-        const paperStatusText = document.getElementById('paperStatusText');
-        const portInfoContent = document.getElementById('portInfoContent');
-        const selectJournal = document.getElementById('selectJournal');
-        const selectTimeRange = document.getElementById('selectTimeRange');
-        const btnFetchLogs = document.getElementById('btnFetchLogs');
-        const logOutput = document.getElementById('logOutput');
-        const btnViewFullLog = document.getElementById('btnViewFullLog');
-        const btnShutdown = document.getElementById('btn-shutdown');
-        const btnReboot = document.getElementById('btn-reboot');
-        const confirmationModal = document.getElementById('confirmationModal');
-        const modalMessage = document.getElementById('modalMessage');
-        const modalConfirmBtn = document.getElementById('modalConfirmBtn');
-        const modalCancelBtn = document.getElementById('modalCancelBtn');
-        let currentModalAction = null;
-        const contentModal = document.getElementById('contentModal');
-        const contentModalTitle = document.getElementById('contentModalTitle');
-        const contentModalBody = document.getElementById('contentModalBody');
-        const contentModalCloseBtn = document.getElementById('contentModalCloseBtn');
-        let fullLogContent = '';
-        let fullSttyOutput = '';
+<!-- Content modal -->
+<div id="contentModal" class="modal-custom">
+    <div class="modal-custom-content modal-lg-custom">
+        <div class="modal-header-custom">
+            <h2 id="contentModalTitle" class="modal-title-custom">Content</h2>
+            <button id="contentModalCloseBtn" type="button" class="close-custom" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        <pre id="contentModalBody" class="p-3"></pre>
+    </div>
+</div>
 
-        async function fetchDeviceStatus() {
-            actionStatus.textContent = 'Fetching device status...';
-            try {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                const mockStatus = {
-                    printerOnline: Math.random() > 0.2,
-                    paperOk: Math.random() > 0.3,
-                    paperLow: Math.random() > 0.8,
-                    devicePortType: 'SERIAL',
-                    serialInfo: {
-                        devfile: '/dev/ttyACM0', baudrate: 9600, bytesize: 8, parity: 'N', stopbits: 1, timeout: 1, dsrdtr: false, profile: 'default',
-                        readStatus: Math.random() > 0.1 ? 'OK' : 'Error', writeStatus: Math.random() > 0.1 ? 'OK' : 'Error',
-                        sttyOutput: `speed 9600 baud; rows 0; columns 0; line = 0;\nintr = ^C; quit = ^\\; erase = ^?; kill = ^U; eof = ^D; eol = <undef>;\neol2 = <undef>; swtch = <undef>; start = ^Q; stop = ^S; susp = ^Z; rprnt = ^R;\nwerase = ^W; lnext = ^V; discard = ^O; min = 1; time = 0;\n-parenb -parodd -cmspar cs8 -hupcl -cstopb cread -clocal -crtscts\n-ignbrk -brkint -ignpar -parmrk -inpck -istrip -inlcr -igncr icrnl ixon -ixoff\n-iuclc -ixany -imaxbel iutf8\nopost -olcuc -ocrnl onlcr -onocr -onlret -ofill -ofdel nl0 cr0 tab0 bs0 vt0 ff0\nisig icanon iexten echo echoe echok -echonl -noflsh -xcase -tostop -echoprt\nechoctl echoke -flusho -extproc\nLong line test: abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789`
-                    },
-                    networkInfo: null, usbInfo: null
-                };
-                printerStatusText.textContent = mockStatus.printerOnline ? 'Online' : 'Offline';
-                printerStatusDot.className = `status-dot ${mockStatus.printerOnline ? 'status-green' : 'status-red'}`;
-                if (mockStatus.paperOk) {
-                    paperStatusText.textContent = 'OK'; paperStatusDot.className = 'status-dot status-green';
-                } else if (mockStatus.paperLow) {
-                    paperStatusText.textContent = 'Paper Low'; paperStatusDot.className = 'status-dot status-yellow';
-                } else {
-                    paperStatusText.textContent = 'Paper Out / Error'; paperStatusDot.className = 'status-dot status-red';
-                }
-                actionStatus.textContent = 'Status updated.';
-                updatePortInfo(mockStatus.devicePortType, mockStatus);
-            } catch (error) {
-                console.error("Failed to fetch device status:", error);
-                actionStatus.textContent = 'Error fetching status.';
-                printerStatusText.textContent = 'Error'; printerStatusDot.className = 'status-dot status-red';
-                paperStatusText.textContent = 'Error'; paperStatusDot.className = 'status-dot status-red';
-                portInfoContent.innerHTML = '<p class="text-danger">Could not load port information.</p>';
+<script>window.HW_PROXY_BASE_URL = "{{ hw_proxy_url }}/hw_proxy/system";</script>
+<script src="{{ url_for('static', path='js/bootstrap.bundle.min.js') }}"></script>
+<script>
+const App = {
+    UI: {
+        btnPrintDummy: document.getElementById('btnPrintDummy'),
+        btnOpenCashDrawer: document.getElementById('btnOpenCashDrawer'),
+        actionStatus: document.getElementById('actionStatus'),
+        connectionStatusDot: document.getElementById('connectionStatusDot'),
+        connectionStatusText: document.getElementById('connectionStatusText'),
+        printerStatusDot: document.getElementById('printerStatusDot'),
+        printerStatusText: document.getElementById('printerStatusText'),
+        paperStatusDot: document.getElementById('paperStatusDot'),
+        paperStatusText: document.getElementById('paperStatusText'),
+        portInfoContent: document.getElementById('portInfoContent'),
+        deviceStatusLoader: document.getElementById('deviceStatusLoader'),
+        portInfoLoader: document.getElementById('portInfoLoader'),
+        selectLogService: document.getElementById('selectLogService'),
+        btnRefreshServiceLogs: document.getElementById('btnRefreshServiceLogs'),
+        btnExpandServiceLogs: document.getElementById('btnExpandServiceLogs'),
+        logOutputService: document.getElementById('logOutputService'),
+        servicesStatusGrid: document.getElementById('servicesStatusGrid'),
+        servicesLastUpdate: document.getElementById('servicesLastUpdate'),
+        btnRefreshServices: document.getElementById('btnRefreshServices'),
+        btnShutdown: document.getElementById('btn-shutdown'),
+        btnReboot: document.getElementById('btn-reboot'),
+        confirmationModal: document.getElementById('confirmationModal'),
+        modalMessage: document.getElementById('modalMessage'),
+        modalConfirmBtn: document.getElementById('modalConfirmBtn'),
+        modalCancelBtn: document.getElementById('modalCancelBtn'),
+        contentModal: document.getElementById('contentModal'),
+        contentModalTitle: document.getElementById('contentModalTitle'),
+        contentModalBody: document.getElementById('contentModalBody'),
+        contentModalCloseBtn: document.getElementById('contentModalCloseBtn'),
+    },
+    State: { currentModalAction: null, fullLogContent: '', fullSttyOutput: '' },
+
+    API: {
+        _base: window.HW_PROXY_BASE_URL || 'http://localhost:9002/hw_proxy/system',
+        async _fetch(url, opts = {}) {
+            const res = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' }, ...opts });
+            if (!res.ok) throw new Error(`Error ${res.status}: ${await res.text()}`);
+            const ct = res.headers.get('content-type') || '';
+            const data = ct.includes('application/json') ? await res.json() : await res.text();
+            if (url.includes('/printer_status') && typeof data === 'object' && data.serialInfo) {
+                data.serialInfo.readStatus = data.serialInfo.readStatus ? 'OK' : 'Error';
+                data.serialInfo.writeStatus = data.serialInfo.writeStatus ? 'OK' : 'Error';
             }
-        }
+            return data;
+        },
+        async getPrinterStatus() { return this._fetch(`${this._base}/printer_status`); },
+        async printTicket() {
+            try { return (await this._fetch(`${this._base}/print_ticket`)).success; }
+            catch { return false; }
+        },
+        async openCashDrawer() {
+            try { return (await this._fetch(`${this._base}/open_cashdrawer`)).success; }
+            catch { return false; }
+        },
+        async fetchLogs(service) {
+            try { return await this._fetch(`${this._base}/logs?service=${encodeURIComponent(service)}&level=warning&lines=100`); }
+            catch (e) { return `Error: ${e.message}`; }
+        },
+        async getServicesStatus() {
+            try { return await this._fetch(`${this._base}/services/status`); }
+            catch { return null; }
+        },
+        async shutdown() {
+            try { await this._fetch(`${this._base}/shutdown`, { method: 'POST' }); return true; }
+            catch { return false; }
+        },
+        async reboot() {
+            try { await this._fetch(`${this._base}/reboot`, { method: 'POST' }); return true; }
+            catch { return false; }
+        },
+    },
 
-        function updatePortInfo(portType, statusData) {
-            portInfoContent.innerHTML = '';
+    StatusManager: {
+        async update() {
+            App.UI.deviceStatusLoader.style.display = 'inline-block';
+            App.UI.portInfoLoader.style.display = 'inline-block';
+            try {
+                const s = await App.API.getPrinterStatus();
+                App.UI.connectionStatusText.textContent = s.connected ? 'Connected' : 'Disconnected';
+                App.UI.connectionStatusDot.className = `status-dot ${s.connected ? 'status-green' : 'status-red'}`;
+                App.UI.printerStatusText.textContent = s.printerOnline ? 'Online' : 'Offline';
+                App.UI.printerStatusDot.className = `status-dot ${s.printerOnline ? 'status-green' : 'status-red'}`;
+                if (s.paperOk) {
+                    App.UI.paperStatusText.textContent = 'OK';
+                    App.UI.paperStatusDot.className = 'status-dot status-green';
+                } else if (s.paperLow) {
+                    App.UI.paperStatusText.textContent = 'Paper Low';
+                    App.UI.paperStatusDot.className = 'status-dot status-yellow';
+                } else {
+                    App.UI.paperStatusText.textContent = 'Paper Out / Error';
+                    App.UI.paperStatusDot.className = 'status-dot status-red';
+                }
+                App.PortInfoManager.display(s.devicePortType, s);
+            } catch {
+                ['connection', 'printer', 'paper'].forEach(k => {
+                    App.UI[`${k}StatusText`].textContent = 'Error';
+                    App.UI[`${k}StatusDot`].className = 'status-dot status-red';
+                });
+                App.UI.portInfoContent.innerHTML = '<p class="text-danger">Could not load port information.</p>';
+            } finally {
+                App.UI.deviceStatusLoader.style.display = 'none';
+                App.UI.portInfoLoader.style.display = 'none';
+            }
+        },
+    },
+
+    PortInfoManager: {
+        display(portType, s) {
+            const el = App.UI.portInfoContent;
+            el.innerHTML = '';
             const title = document.createElement('h3');
             title.className = 'h6 mb-3 text-secondary';
-            title.textContent = `Device Port Type: ${portType}`;
-            portInfoContent.appendChild(title);
-
-            if (portType === 'SERIAL' && statusData.serialInfo) {
-                const info = statusData.serialInfo;
-                const listGroup = document.createElement('ul');
-                listGroup.className = 'list-group list-group-flush mb-3';
-                function addDetail(term, definition, statusVal = null) {
+            title.textContent = `Port Type: ${portType}`;
+            el.appendChild(title);
+            if (portType === 'SERIAL' && s.serialInfo) {
+                const info = s.serialInfo;
+                const ul = document.createElement('ul');
+                ul.className = 'list-group list-group-flush mb-3';
+                const addRow = (label, val, st = null) => {
                     const li = document.createElement('li');
                     li.className = 'list-group-item d-flex justify-content-between align-items-center small p-2';
-                    let statusIndicator = '';
-                    if (statusVal === 'OK') statusIndicator = '<span class="status-dot status-green ms-2"></span>';
-                    else if (statusVal === 'Error') statusIndicator = '<span class="status-dot status-red ms-2"></span>';
-                    li.innerHTML = `${term}: <strong class="text-dark">${definition}</strong> ${statusIndicator}`;
-                    listGroup.appendChild(li);
-                }
-                addDetail('Device File', info.devfile);
-                addDetail('Read Status', info.readStatus, info.readStatus);
-                addDetail('Write Status', info.writeStatus, info.writeStatus);
-                portInfoContent.appendChild(listGroup);
-
-                const configContainer = document.createElement('div');
-                configContainer.className = 'mt-auto d-flex flex-column flex-grow-1';
-                const configHeaderDiv = document.createElement('div');
-                configHeaderDiv.className = 'd-flex justify-content-between align-items-center mb-2';
-                const configTitleHeader = document.createElement('h4');
-                configTitleHeader.className = 'h6 mb-0 text-secondary';
-                configTitleHeader.textContent = 'Serial Port Configuration (stty):';
-                configHeaderDiv.appendChild(configTitleHeader);
-                const btnViewFullStty = document.createElement('button');
-                btnViewFullStty.className = 'btn btn-sm btn-outline-secondary';
-                btnViewFullStty.innerHTML = '<i class="fas fa-expand-arrows-alt me-1"></i>View Full';
-                btnViewFullStty.onclick = () => {
-                    fullSttyOutput = `Baudrate: ${info.baudrate}\nBytesize: ${info.bytesize}\nParity: ${info.parity}\nStopbits: ${info.stopbits}\nTimeout: ${info.timeout}s\nDSR/DTR Flow Control: ${info.dsrdtr}\nProfile: ${info.profile}\n\nRaw stty Output:\n${info.sttyOutput || 'Not available'}`;
-                    showContentInModal('Full Serial Port Configuration (stty)', fullSttyOutput);
+                    const dot = st === 'OK' ? '<span class="status-dot status-green ms-2"></span>'
+                              : st === 'Error' ? '<span class="status-dot status-red ms-2"></span>' : '';
+                    li.innerHTML = `${label}: <strong class="text-dark">${val}</strong>${dot}`;
+                    ul.appendChild(li);
                 };
-                configHeaderDiv.appendChild(btnViewFullStty);
-                configContainer.appendChild(configHeaderDiv);
-                const sttyPre = document.createElement('pre');
-                sttyPre.className = 'stty-output-preview flex-grow-1';
-                sttyPre.style.minHeight = '100px';
-                sttyPre.style.overflowY = 'auto';
-                sttyPre.textContent = `Baudrate: ${info.baudrate}\nBytesize: ${info.bytesize}\nParity: ${info.parity}\nStopbits: ${info.stopbits}\nTimeout: ${info.timeout}s\nDSR/DTR: ${info.dsrdtr}\nProfile: ${info.profile}\n\nRaw (preview):\n${(info.sttyOutput || 'Not available').substring(0, 150)}...`;
-                configContainer.appendChild(sttyPre);
-                portInfoContent.appendChild(configContainer);
+                addRow('Device File', info.devfile);
+                addRow('Read Status', info.readStatus, info.readStatus);
+                addRow('Write Status', info.writeStatus, info.writeStatus);
+                el.appendChild(ul);
+                const wrap = document.createElement('div');
+                wrap.className = 'mt-auto d-flex flex-column flex-grow-1 stty-output-container';
+                const hdr = document.createElement('div');
+                hdr.className = 'd-flex justify-content-between align-items-center mb-2';
+                const hTitle = document.createElement('h4');
+                hTitle.className = 'h6 mb-0 text-secondary';
+                hTitle.textContent = 'Serial Port Configuration (stty):';
+                hdr.appendChild(hTitle);
+                const btnExpand = document.createElement('button');
+                btnExpand.className = 'btn btn-sm btn-outline-secondary';
+                btnExpand.innerHTML = '<i class="fas fa-expand-arrows-alt me-1"></i>View Full';
+                btnExpand.onclick = () => {
+                    const full = `Baudrate: ${info.baudrate}\nBytesize: ${info.bytesize}\nParity: ${info.parity}\nStopbits: ${info.stopbits}\nTimeout: ${info.timeout}s\nDSR/DTR Flow Control: ${info.dsrdtr}\nProfile: ${info.profile}\n\nFull stty Output:\n${info.sttyOutput || 'Not available'}`;
+                    App.ModalManager.showContent('Full Serial Port Configuration (stty)', full);
+                };
+                hdr.appendChild(btnExpand);
+                wrap.appendChild(hdr);
+                const pre = document.createElement('pre');
+                pre.className = 'stty-output-preview';
+                pre.textContent = `Baudrate: ${info.baudrate}\nBytesize: ${info.bytesize}\nParity: ${info.parity}\nStopbits: ${info.stopbits}\nTimeout: ${info.timeout}s\nDSR/DTR: ${info.dsrdtr}\nProfile: ${info.profile}`;
+                wrap.appendChild(pre);
+                el.appendChild(wrap);
             } else {
-                portInfoContent.innerHTML += `<p class="text-muted mt-auto">No detailed port information for ${portType}.</p>`;
+                el.innerHTML += `<p class="text-muted">No detailed port information for ${portType || 'unknown'}.</p>`;
             }
-        }
+        },
+    },
 
-        async function printDummyTicket() {
-            actionStatus.textContent = 'Printing dummy ticket...';
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            const success = Math.random() > 0.2;
-            actionStatus.textContent = success ? 'Dummy ticket printed successfully.' : 'Error printing dummy ticket.';
-            actionStatus.className = `mt-3 small ${success ? 'text-success' : 'text-danger'}`;
-            fetchDeviceStatus();
-        }
+    LogsManager: {
+        async fetch() {
+            const service = App.UI.selectLogService.value;
+            App.UI.logOutputService.textContent = `Fetching logs for ${service}...`;
+            App.UI.btnExpandServiceLogs.style.display = 'none';
+            App.UI.btnRefreshServiceLogs.disabled = true;
+            try {
+                const logs = await App.API.fetchLogs(service);
+                App.State.fullLogContent = logs;
+                App.UI.logOutputService.textContent = logs;
+                App.UI.btnExpandServiceLogs.style.display = 'inline-block';
+            } catch (e) {
+                App.UI.logOutputService.textContent = `Error: ${e.message}`;
+            } finally {
+                App.UI.btnRefreshServiceLogs.disabled = false;
+            }
+        },
+        expand() {
+            App.ModalManager.showContent(
+                `Logs: ${App.UI.selectLogService.value}`,
+                App.State.fullLogContent || '[No content]',
+                true
+            );
+        },
+    },
 
-        async function openCashDrawer() {
-            actionStatus.textContent = 'Opening cash drawer...';
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            const success = Math.random() > 0.1;
-            actionStatus.textContent = success ? 'Cash drawer opened successfully.' : 'Error opening cash drawer.';
-            actionStatus.className = `mt-3 small ${success ? 'text-success' : 'text-danger'}`;
-        }
+    ServicesManager: {
+        async fetch() {
+            App.UI.servicesStatusGrid.innerHTML = '<p class="text-muted small">Refreshing...</p>';
+            App.UI.btnRefreshServices.disabled = true;
+            try {
+                const data = await App.API.getServicesStatus();
+                if (!data || !data.services || !data.services.length) {
+                    App.UI.servicesStatusGrid.innerHTML = '<p class="text-muted small">No services found.</p>';
+                    return;
+                }
+                App.UI.servicesStatusGrid.innerHTML = data.services.map(svc => {
+                    const dot = svc.active ? 'status-green'
+                        : (svc.status === 'unknown' || svc.status === 'not found') ? 'status-gray'
+                        : 'status-red';
+                    const badge = svc.type === 'docker'
+                        ? '<span class="badge bg-info text-dark ms-1" style="font-size:0.65rem;">docker</span>'
+                        : '<span class="badge bg-secondary ms-1" style="font-size:0.65rem;">systemd</span>';
+                    return `<div class="service-status-item">
+                        <span class="status-dot ${dot}"></span>
+                        <span class="service-item-name">${svc.name}</span>${badge}
+                        <span class="service-item-status">${svc.status}</span>
+                    </div>`;
+                }).join('');
+                App.UI.servicesLastUpdate.textContent = `Updated: ${new Date().toLocaleTimeString('en-GB')}`;
+            } catch (e) {
+                App.UI.servicesStatusGrid.innerHTML = `<p class="text-danger small">Error: ${e.message}</p>`;
+            } finally {
+                App.UI.btnRefreshServices.disabled = false;
+            }
+        },
+    },
 
-        async function fetchLogs() {
-            logOutput.textContent = 'Fetching logs...';
-            btnViewFullLog.style.display = 'none';
-            const journal = selectJournal.value;
-            const timeRange = selectTimeRange.value;
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            const mockLogArray = [
-                `--- Logs for ${journal}, Time: ${timeRange} ---`,
-                `${new Date().toISOString()} [INFO] Log entry 1.`,
-                `${new Date().toISOString()} [WARN] A warning occurred.`,
-                `${new Date().toISOString()} [DEBUG] Debug info.`,
-                `${new Date().toISOString()} [ERROR] Example error.`,
-                ...Array.from({length: 20}, (_, i) => `${new Date().toISOString()} [INFO] More log line ${i + 1} to test scrolling.`)
-            ];
-            fullLogContent = mockLogArray.join('\n');
-            logOutput.textContent = fullLogContent;
-            btnViewFullLog.style.display = 'inline-block';
-        }
+    ModalManager: {
+        showConfirmation(msg, cb) {
+            App.UI.modalMessage.textContent = msg;
+            App.State.currentModalAction = cb;
+            App.UI.confirmationModal.style.display = 'block';
+        },
+        hideConfirmation() {
+            App.UI.confirmationModal.style.display = 'none';
+            App.State.currentModalAction = null;
+        },
+        showContent(title, content, wide = false) {
+            App.UI.contentModalTitle.textContent = title;
+            App.UI.contentModalBody.textContent = content;
+            App.UI.contentModal.style.display = 'block';
+            App.UI.contentModal.querySelector('.modal-custom-content').classList.toggle('modal-xl-custom', wide);
+        },
+        hideContent() {
+            App.UI.contentModal.style.display = 'none';
+            App.UI.contentModal.querySelector('.modal-custom-content').classList.remove('modal-xl-custom');
+        },
+    },
 
-        function showConfirmationModal(message, actionCallback) { modalMessage.textContent = message; currentModalAction = actionCallback; confirmationModal.style.display = 'block'; }
-        function hideConfirmationModal() { confirmationModal.style.display = 'none'; currentModalAction = null; }
-        function showContentInModal(title, content) { contentModalTitle.textContent = title; contentModalBody.textContent = content; contentModal.style.display = 'block'; }
-        function hideContentModal() { contentModal.style.display = 'none'; }
-        async function shutdownServer() { hideConfirmationModal(); actionStatus.textContent = 'Sending shutdown command...'; await new Promise(resolve => setTimeout(resolve, 1000)); actionStatus.textContent = 'Shutdown command sent.'; }
-        async function rebootServer() { hideConfirmationModal(); actionStatus.textContent = 'Sending reboot command...'; await new Promise(resolve => setTimeout(resolve, 1000)); actionStatus.textContent = 'Reboot command sent.'; }
+    ActionHandler: {
+        async printTicket() {
+            App.UI.actionStatus.textContent = 'Printing test ticket...';
+            App.UI.actionStatus.className = 'mt-3 small text-muted';
+            const ok = await App.API.printTicket();
+            App.UI.actionStatus.textContent = ok ? 'Test ticket printed successfully.' : 'Error printing test ticket.';
+            App.UI.actionStatus.className = `mt-3 small ${ok ? 'text-success' : 'text-danger'}`;
+            App.StatusManager.update();
+        },
+        async openCashDrawer() {
+            App.UI.actionStatus.textContent = 'Opening cash drawer...';
+            App.UI.actionStatus.className = 'mt-3 small text-muted';
+            const ok = await App.API.openCashDrawer();
+            App.UI.actionStatus.textContent = ok ? 'Cash drawer opened successfully.' : 'Error opening cash drawer.';
+            App.UI.actionStatus.className = `mt-3 small ${ok ? 'text-success' : 'text-danger'}`;
+        },
+        async shutdown() {
+            App.ModalManager.hideConfirmation();
+            App.UI.actionStatus.textContent = 'Sending shutdown command...';
+            App.UI.actionStatus.className = 'mt-3 small text-muted';
+            const ok = await App.API.shutdown();
+            App.UI.actionStatus.textContent = ok ? 'Shutdown command sent.' : 'Error sending shutdown command.';
+            App.UI.actionStatus.className = `mt-3 small ${ok ? 'text-info' : 'text-danger'}`;
+        },
+        async reboot() {
+            App.ModalManager.hideConfirmation();
+            App.UI.actionStatus.textContent = 'Sending reboot command...';
+            App.UI.actionStatus.className = 'mt-3 small text-muted';
+            const ok = await App.API.reboot();
+            App.UI.actionStatus.textContent = ok ? 'Reboot command sent.' : 'Error sending reboot command.';
+            App.UI.actionStatus.className = `mt-3 small ${ok ? 'text-info' : 'text-danger'}`;
+        },
+    },
 
-        btnPrintDummy.addEventListener('click', printDummyTicket);
-        btnOpenCashDrawer.addEventListener('click', openCashDrawer);
-        btnFetchLogs.addEventListener('click', fetchLogs);
-        btnShutdown.addEventListener('click', () => showConfirmationModal('Are you sure you want to shut down the server?', shutdownServer));
-        btnReboot.addEventListener('click', () => showConfirmationModal('Are you sure you want to reboot the server?', rebootServer));
-        modalConfirmBtn.addEventListener('click', () => { if (currentModalAction) currentModalAction(); });
-        modalCancelBtn.addEventListener('click', hideConfirmationModal);
-        btnViewFullLog.addEventListener('click', () => showContentInModal(fullLogContent ? 'Full System Log' : 'System Log', fullLogContent || 'No log content.'));
-        contentModalCloseBtn.addEventListener('click', hideContentModal);
-        window.onclick = (event) => { if (event.target == confirmationModal) hideConfirmationModal(); if (event.target == contentModal) hideContentModal(); }
-        document.addEventListener('DOMContentLoaded', fetchDeviceStatus);
-    </script>
+    init() {
+        App.UI.btnPrintDummy.addEventListener('click', App.ActionHandler.printTicket);
+        App.UI.btnOpenCashDrawer.addEventListener('click', App.ActionHandler.openCashDrawer);
+        App.UI.btnRefreshServiceLogs.addEventListener('click', () => App.LogsManager.fetch());
+        App.UI.btnExpandServiceLogs.addEventListener('click', () => App.LogsManager.expand());
+        App.UI.btnRefreshServices.addEventListener('click', () => App.ServicesManager.fetch());
+        App.UI.btnShutdown.addEventListener('click', () =>
+            App.ModalManager.showConfirmation('Are you sure you want to shut down the server?', App.ActionHandler.shutdown)
+        );
+        App.UI.btnReboot.addEventListener('click', () =>
+            App.ModalManager.showConfirmation('Are you sure you want to reboot the server?', App.ActionHandler.reboot)
+        );
+        App.UI.modalConfirmBtn.addEventListener('click', () => { if (App.State.currentModalAction) App.State.currentModalAction(); });
+        App.UI.modalCancelBtn.addEventListener('click', App.ModalManager.hideConfirmation);
+        App.UI.contentModalCloseBtn.addEventListener('click', App.ModalManager.hideContent);
+        window.onclick = e => {
+            if (e.target === App.UI.confirmationModal) App.ModalManager.hideConfirmation();
+            if (e.target === App.UI.contentModal) App.ModalManager.hideContent();
+        };
+        App.StatusManager.update();
+        App.ServicesManager.fetch();
+    },
+};
+
+document.addEventListener('DOMContentLoaded', App.init);
+</script>
 </body>
 </html>

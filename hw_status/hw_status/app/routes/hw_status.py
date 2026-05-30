@@ -24,23 +24,30 @@ async def hello():
     return "ping"
 
 
+def _detect_lang(accept_language: str) -> str:
+    """Return 'es' if the browser prefers Spanish, 'en' otherwise."""
+    for part in accept_language.split(","):
+        lang = part.strip().split(";")[0].strip().lower()
+        if lang.startswith("es"):
+            return "es"
+    return "en"
+
+
 @router.get(
     "/",
     response_class=HTMLResponse
 )
 async def system_status(
     request: Request,
-    templates: Jinja2Templates = Depends(get_templates)
+    accept_language: str = Header(default=""),
+    templates: Jinja2Templates = Depends(get_templates),
 ):
-    """Emulates IoT Box hello endpoint"""
-    return templates.TemplateResponse(
-        request=request,
-        name="status.html",
-        context={
-            "base_url": str(request.base_url),
-            "google_login_url": "",
-            "hw_proxy_url": str(settings.HW_PROXY_URL).rstrip("/"),
-            "odoo_url": str(settings.BACKEND_HOST).rstrip("/"),
-            "grafana_url": str(settings.BACKEND_HOST).rstrip("/") + "/grafana",
-        },
-    )
+    """Serves the IoT Box status UI in Spanish or English based on browser language."""
+    lang = _detect_lang(accept_language)
+    template = "full_bootstrap_es.html" if lang == "es" else "full_bootstrap.html"
+    context = {
+        "hw_proxy_url": str(settings.HW_PROXY_URL).rstrip("/"),
+        "odoo_url": str(settings.BACKEND_HOST).rstrip("/"),
+        "grafana_url": str(settings.BACKEND_HOST).rstrip("/") + "/grafana",
+    }
+    return templates.TemplateResponse(request=request, name=template, context=context)
