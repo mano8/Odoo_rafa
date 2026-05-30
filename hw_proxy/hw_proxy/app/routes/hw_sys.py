@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from hw_proxy.core.deps import get_printer_pool
 from hw_proxy.core.printer_pool import PrinterPool
 from hw_proxy.schemas.hw_sys import JournalQuery
+from hw_proxy.schemas.receipt import PrintReceiptJsonRequest, ReceiptLine
 from hw_proxy.tools.utils import HwUtils
 
 _KNOWN_SERVICES = {
@@ -142,7 +143,20 @@ async def get_printer_status(pool: PrinterPool = Depends(get_printer_pool)):
 @router.get("/print_ticket")
 async def print_ticket(pool: PrinterPool = Depends(get_printer_pool)):
     try:
-        await pool.cut()
+        req = PrintReceiptJsonRequest(
+            lines=[
+                ReceiptLine(t="text", v="*** TEST PRINT ***", c="center", b=True),
+                ReceiptLine(t="div"),
+                ReceiptLine(t="row", l="hw_proxy", r="OK"),
+                ReceiptLine(t="row", l="Printer", r="OK"),
+                ReceiptLine(t="div"),
+                ReceiptLine(t="text", v="Test OK", c="center"),
+            ],
+            char_size=1,
+            cut=True,
+            open_cashdrawer=False,
+        )
+        await pool.print_receipt_json(req)
         return JSONResponse({"success": True})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
