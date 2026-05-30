@@ -21,7 +21,8 @@ DOMAIN    ?= traefik-client.local
 CERT_NAME ?= local-cert
 # Set OFFLINE=1 to vendor wheels and load image tarballs before building.
 # e.g.: make stack-up OFFLINE=1
-OFFLINE   ?= 0
+OFFLINE    ?= 0
+BACKUP_DIR ?= /opt/backups/odoo_rafa
 
 .DEFAULT_GOAL := help
 
@@ -31,7 +32,7 @@ OFFLINE   ?= 0
         deploy-hw-proxy update-hw-proxy update-odoo-addon volumes build \
         create-networks stack-up up down restart update \
         monitoring-up monitoring-down monitoring-logs \
-        logs status backup
+        logs status backup backup-volumes restore-volumes
 
 # ──────────────────────────────────────────────────────────────────────────────
 help:
@@ -62,6 +63,8 @@ help:
 	@printf "  %-26s %s\n" "make status"             "Show status of all services and containers"
 	@printf "\n\033[4mMaintenance\033[0m:\n"
 	@printf "  %-26s %s\n" "make backup"             "Trigger PostgreSQL database backup"
+	@printf "  %-26s %s\n" "make backup-volumes"     "Snapshot pgdata + filestore to BACKUP_DIR (max 5, rotated)"
+	@printf "  %-26s %s\n" "make restore-volumes"    "Restore from snapshot: make restore-volumes BACKUP=<path>"
 	@printf "  %-26s %s\n" "make check"              "Verify prerequisites"
 	@printf "\n\033[4mOverridable variables\033[0m:\n"
 	@printf "  HW_USER=%-18s Hardware service user  (current: $(HW_USER))\n" ""
@@ -324,9 +327,35 @@ status:
 	@cd $(MONITORING_DIR) && $(SUDO) docker compose ps
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Database backup
+# Database backup (pg_dump via hw_proxy script)
 # ──────────────────────────────────────────────────────────────────────────────
 backup:
 	@echo "[backup] Triggering PostgreSQL database backup..."
 	@sudo -u $(HW_USER) bash /opt/hw_proxy/hw_proxy/scripts/backup_odoo_db.sh
 	@echo "[backup] Done."
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Volume snapshot — disaster recovery backup / restore
+#
+# Backs up: postgres/pgdata + odoo/data (filestore).
+# Rotation: keeps last 5 snapshots in BACKUP_DIR (default: /opt/backups/odoo_rafa).
+# Expected size: ~120 MB compressed per snapshot.
+# ──────────────────────────────────────────────────────────────────────────────
+backup-volumes:
+	@echo "[backup-volumes] Snapshotting critical volumes to $(BACKUP_DIR)..."
+	@$(SUDO) bash $(SCRIPTS_DIR)/backup_volumes.sh "$(COMPOSE_DIR)" "$(BACKUP_DIR)"
+	@echo "[backup-volumes] Done."
+
+# Usage: make restore-volumes BACKUP=/opt/backups/odoo_rafa/2026-05-30_14-00-00
+restore-volumes:
+	@test -n "$(BACKUP)" \
+	  || { echo "ERROR: BACKUP variable required.  Usage: make restore-volumes BACKUP=<path>"; exit 1; }
+	@echo "[restore-volumes] Stopping stacks..."
+	@cd $(COMPOSE_DIR) && $(SUDO) docker compose stop || true
+	@cd $(MONITORING_DIR) && $(SUDO) docker compose stop || true
+	@echo "[restore-volumes] Restoring volumes from $(BACKUP)..."
+	@$(SUDO) bash $(SCRIPTS_DIR)/restore_volumes.sh "$(COMPOSE_DIR)" "$(BACKUP)"
+	@echo "[restore-volumes] Restarting stacks..."
+	@cd $(COMPOSE_DIR) && $(SUDO) docker compose up -d --remove-orphans
+	@cd $(MONITORING_DIR) && $(SUDO) docker compose up -d --remove-orphans
+	@echo "[restore-volumes] Done. Verify Odoo loads correctly."
