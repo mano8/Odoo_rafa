@@ -321,13 +321,22 @@ patch(PosStore.prototype, {
 const _LINE_W = { 1: 42, 2: 42, 3: 21 };
 
 /**
- * Post-process lines produced by _domToLines() for the SaleDetailsReport:
+ * Post-process lines produced by _domToLines() for the SaleDetailsReport.
  *
- * 1. Fix OWL whitespace stripping between adjacent <t> nodes that causes
- *    "1Unidades" instead of "1 Unidades" in the qty×uom text.
- * 2. If a row's left+right exceeds the printer line width for the current
- *    char_size, replace the single row with a plain-text name line followed
- *    by a right-aligned qty×price line — but only when it doesn't fit.
+ * The SaleDetailsReport template uses xml:space="preserve" so OWL preserves
+ * whitespace-only text nodes between adjacent <t> elements.  This means
+ * span.textContent contains embedded newlines and indentation, e.g.:
+ *   "1\n                Unidades\n                x\n                1.50€"
+ * We must collapse all internal whitespace before length checks or printing.
+ *
+ * After normalisation:
+ * 1. Add a space between a digit and an adjacent letter to fix OWL stripping
+ *    the inter-element space: "1Unidades" → "1 Unidades".
+ * 2. If left+right fits within the printer line width for the current
+ *    char_size, keep it as a single left/right row (unchanged behaviour).
+ * 3. Only when the combined text does not fit: emit the product name as a
+ *    plain-text line, then the qty×price as a right-aligned text line below.
+ *    Applies equally to the SOLD and REFUNDED sections.
  */
 function _postProcessSaleDetailsLines(lines, charSize) {
     const W = _LINE_W[charSize] || 42;
@@ -337,15 +346,20 @@ function _postProcessSaleDetailsLines(lines, charSize) {
             result.push(line);
             continue;
         }
-        const left = line.l || "";
-        // Add space between a digit and the first letter of a unit word,
-        // e.g. "1Unidades" → "1 Unidades", "12Kg" → "12 Kg"
-        const right = (line.r || "").replace(/(\d)([^\d\s.,€$£\-=×x])/g, "$1 $2");
+        // Collapse embedded newlines/indentation from xml:space="preserve"
+        const left = (line.l || "").replace(/\s+/g, " ").trim();
+        const right = (line.r || "")
+            .replace(/\s+/g, " ")
+            .trim()
+            // Add space between a digit and the first letter of a unit word:
+            // "1Unidades" → "1 Unidades", "12Kg" → "12 Kg"
+            .replace(/(\d)([^\d\s.,€$£\-=×x])/g, "$1 $2");
+
         if (!left || left.length + right.length + 1 <= W) {
             // Fits on one line — keep as a left/right row
-            result.push({ ...line, r: right });
+            result.push({ ...line, l: left, r: right });
         } else {
-            // Too long: product name first, then qty×price right-aligned below
+            // Too long: name line(s) first, then qty×price right-aligned below
             result.push({ t: "text", v: left });
             if (right) result.push({ t: "text", v: right, c: "right" });
         }

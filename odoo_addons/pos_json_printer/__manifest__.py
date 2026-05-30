@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'POS JSON Printer',
-    'version': '18.0.0.14.0',
+    'version': '18.0.0.15.0',
     'category': 'Sales/Point of Sale',
     'summary': 'Send structured JSON to hw_proxy instead of a PNG image — 25× smaller payload.',
     'description': """
