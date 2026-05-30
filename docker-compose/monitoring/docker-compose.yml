@@ -2,8 +2,6 @@ services:
 
   prometheus:
     image: prom/prometheus:v3.4.0
-    environment:
-      MGMT_IP: ${MGMT_IP:-10.254.254.1}
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -11,7 +9,6 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.retention.time=7d"
       - "--storage.tsdb.retention.size=2GB"
-      - "--enable-feature=expand-env"
     expose:
       - "9090"
     healthcheck:
