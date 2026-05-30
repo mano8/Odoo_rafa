@@ -5,7 +5,6 @@ import { OrderReceipt } from "@point_of_sale/app/screens/receipt_screen/receipt/
 import { SaleDetailsButton } from "@point_of_sale/app/navbar/sale_details_button/sale_details_button";
 import { Navbar } from "@point_of_sale/app/navbar/navbar";
 import { patch } from "@web/core/utils/patch";
-import { renderToElement } from "@web/core/utils/render";
 import { formatDateTime } from "@web/core/l10n/dates";
 
 const { DateTime } = luxon;
@@ -314,79 +313,125 @@ patch(PosStore.prototype, {
     },
 });
 
-// ─── Sale-details helpers ─────────────────────────────────────────────────────
+// ─── Sale-details direct line builder ────────────────────────────────────────
+//
+// Builds the session / Z-report lines directly from the structured saleDetails
+// data returned by get_sale_details, bypassing DOM scanning entirely.
+//
+// DOM scanning (via _domToLines) is reliable for OrderReceipt because OWL
+// renders that component predictably.  SaleDetailsReport uses
+// xml:space="preserve" and adjacent <t> nodes whose whitespace behaviour is
+// inconsistent across OWL versions — scanning it produces embedded newlines
+// and broken length counts.  Building from raw data avoids all of that.
 //
 // hw_proxy char widths: sizes 1+2 share 42 cols (same glyph width, size 2 is
 // double-height only); size 3 is 2× wide so only 21 cols fit.
 const _LINE_W = { 1: 42, 2: 42, 3: 21 };
 
-/**
- * Post-process lines produced by _domToLines() for the SaleDetailsReport.
- *
- * The SaleDetailsReport template uses xml:space="preserve" so OWL preserves
- * whitespace-only text nodes between adjacent <t> elements.  This means
- * span.textContent contains embedded newlines and indentation, e.g.:
- *   "1\n                Unidades\n                x\n                1.50€"
- * We must collapse all internal whitespace before length checks or printing.
- *
- * After normalisation:
- * 1. Add a space between a digit and an adjacent letter to fix OWL stripping
- *    the inter-element space: "1Unidades" → "1 Unidades".
- * 2. If left+right fits within the printer line width for the current
- *    char_size, keep it as a single left/right row (unchanged behaviour).
- * 3. Only when the combined text does not fit: emit the product name as a
- *    plain-text line, then the qty×price as a right-aligned text line below.
- *    Applies equally to the SOLD and REFUNDED sections.
- */
-function _postProcessSaleDetailsLines(lines, charSize) {
-    const W = _LINE_W[charSize] || 42;
-    const result = [];
-    for (const line of lines) {
-        if (line.t !== "row") {
-            result.push(line);
-            continue;
-        }
-        // Collapse embedded newlines/indentation from xml:space="preserve"
-        const left = (line.l || "").replace(/\s+/g, " ").trim();
-        const right = (line.r || "")
-            .replace(/\s+/g, " ")
-            .trim()
-            // Add space between a digit and the first letter of a unit word:
-            // "1Unidades" → "1 Unidades", "12Kg" → "12 Kg"
-            .replace(/(\d)([^\d\s.,€$£\-=×x])/g, "$1 $2");
-
-        if (!left || left.length + right.length + 1 <= W) {
-            // Fits on one line — keep as a left/right row
-            result.push({ ...line, l: left, r: right });
-        } else {
-            // Too long: name line(s) first, then qty×price right-aligned below
-            result.push({ t: "text", v: left });
-            if (right) result.push({ t: "text", v: right, c: "right" });
-        }
-    }
-    return result;
+function _fmtQty(qty) {
+    // Trim trailing decimal zeros: 1.000 → "1", 1.500 → "1.5"
+    return String(parseFloat(Number(qty).toFixed(3)));
 }
 
 /**
- * Shared helper: render SaleDetailsReport DOM, convert to lines, post-process,
- * and POST to the hw_proxy JSON endpoint.  Returns true on success.
+ * Convert a saleDetails RPC payload to a flat ReceiptLine array.
+ *
+ * Product rows: if name + qty×price fits in W chars → single row.
+ * Only when too long: product name on its own line, qty×price right-aligned
+ * on the next line.  Applies equally to the SOLD and REFUNDED sections.
+ *
+ * @param {object} sd        - saleDetails from get_sale_details
+ * @param {number|string} charSize - POS receipt_char_size (1/2/3)
+ * @param {Function} fmt     - formatCurrency(value, noSymbol)
+ * @param {object} pos       - PosStore (for company name)
+ */
+function _buildSaleDetailsLines(sd, charSize, fmt, pos) {
+    const W = _LINE_W[charSize] || 42;
+    const out = [];
+
+    const _text = (v, c, pin) => {
+        const line = { t: "text", v: String(v ?? "") };
+        if (c) line.c = c;
+        if (pin) line.pin = true;
+        out.push(line);
+    };
+
+    const _div = () => out.push({ t: "div", dv: "-" });
+
+    // Left/right pair — splits to two lines only when it doesn't fit.
+    const _row = (left, right) => {
+        const l = String(left ?? "");
+        const r = String(right ?? "");
+        if (!l || l.length + r.length + 1 <= W) {
+            out.push({ t: "row", l, r });
+        } else {
+            _text(l);
+            _text(r, "right");
+        }
+    };
+
+    const _productSection = (categories) => {
+        for (const cat of categories ?? []) {
+            for (const line of cat.products ?? []) {
+                const name = String(line.product_name ?? "").substring(0, 20);
+                const uom = line.uom && line.uom !== "Units" ? ` ${line.uom}` : "";
+                const right = `${_fmtQty(line.quantity)}${uom} x ${fmt(line.price_unit, false)}`;
+                _row(name, right);
+                if (line.discount) _text(`  Discount: ${line.discount}%`);
+            }
+        }
+    };
+
+    // Company name header
+    const company = pos?.company?.name || pos?.config?.company_name || "";
+    if (company) _text(company);
+
+    // SOLD section
+    _text("SOLD:");
+    _productSection(sd.products);
+    _div();
+
+    // REFUNDED section (always shown to match original template)
+    _text("REFUNDED:");
+    _productSection(sd.refund_products);
+    _div();
+
+    // Payments
+    _text("Payments:");
+    for (const p of sd.payments ?? []) {
+        _row(String(p.name ?? ""), fmt(p.total ?? 0, false));
+    }
+    _div();
+
+    // Taxes — backend returns either an object or array
+    _text("Taxes:");
+    const taxes = Array.isArray(sd.taxes) ? sd.taxes : Object.values(sd.taxes ?? {});
+    for (const tax of taxes) {
+        _row(String(tax.name ?? ""), fmt(tax.tax_amount ?? 0, false));
+    }
+    _div();
+
+    // Total
+    _row("Total:", fmt(sd.currency?.total_paid ?? 0, false));
+
+    // Date — pinned so it always prints at size 1 (matches order receipt footer)
+    _text(formatDateTime(DateTime.now()), null, true);
+
+    return out;
+}
+
+/**
+ * Fetch sale details, build lines from raw data, and POST to hw_proxy.
  */
 async function _printSaleDetails(pos) {
-    const saleDetails = await pos.data.call(
+    const sd = await pos.data.call(
         "report.point_of_sale.report_saledetails",
         "get_sale_details",
         [false, false, false, [pos.session.id]]
     );
-    const report = renderToElement("point_of_sale.SaleDetailsReport", {
-        ...saleDetails,
-        date: formatDateTime(DateTime.now()),
-        pos,
-        formatCurrency: pos.env.utils.formatCurrency,
-    });
     const charSize = pos.config.receipt_char_size || 1;
-    const raw = _domToLines(report);
-    if (!raw.length) throw new Error("empty DOM");
-    const lines = _postProcessSaleDetailsLines(raw, charSize);
+    const lines = _buildSaleDetailsLines(sd, charSize, pos.env.utils.formatCurrency, pos);
+    if (!lines.length) throw new Error("empty report");
     const ok = await _postJson(_hwUrl(pos.config), {
         lines,
         char_size: charSize,
