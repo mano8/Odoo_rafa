@@ -29,6 +29,7 @@ BACKUP_DIR ?= /opt/backups/odoo_rafa
 .PHONY: help check install \
         install-user install-sudoers install-firewall install-systemd \
         certs-traefik certs-docker \
+        certs-status certs-renew certs-force-renew certs-rotate-ca \
         deploy-hw-proxy update-hw-proxy update-odoo-addon volumes build \
         create-networks stack-up up down restart update \
         monitoring-up monitoring-down monitoring-logs \
@@ -43,8 +44,12 @@ help:
 	@printf "  %-26s %s\n" "make install-user"       "Create hw_user, add to dialout/lp"
 	@printf "  %-26s %s\n" "make install-sudoers"    "Grant hw_user reboot/shutdown rights"
 	@printf "  %-26s %s\n" "make install-firewall"   "Configure ufw rules for ports 9000-9002"
-	@printf "  %-26s %s\n" "make certs-traefik"      "Generate Traefik TLS certificates"
-	@printf "  %-26s %s\n" "make certs-docker"       "Generate Docker mTLS certificates"
+	@printf "  %-26s %s\n" "make certs-traefik"      "Generate Traefik TLS certificates (legacy)"
+	@printf "  %-26s %s\n" "make certs-docker"       "Generate Docker mTLS certificates (legacy)"
+	@printf "  %-26s %s\n" "make certs-status"       "Show TLS/mTLS certificate expiry dates"
+	@printf "  %-26s %s\n" "make certs-renew"        "Auto-renew expiring certs (threshold: 30 days)"
+	@printf "  %-26s %s\n" "make certs-force-renew"  "Force-regenerate all leaf certs"
+	@printf "  %-26s %s\n" "make certs-rotate-ca"    "MANUAL: rotate mkcert CA (interactive, destructive)"
 	@printf "  %-26s %s\n" "make deploy-hw-proxy"    "Deploy hw_proxy service (venv + code)"
 	@printf "  %-26s %s\n" "make update-hw-proxy"    "Pull main, redeploy hw_proxy, restart service"
 	@printf "  %-26s %s\n" "make update-odoo-addon"  "Run addon update script and restart Odoo container"
@@ -85,6 +90,7 @@ check:
 	@command -v python3 >/dev/null 2>&1 || { echo "ERROR: python3 not installed"; exit 1; }
 	@command -v rsync   >/dev/null 2>&1 || { echo "ERROR: rsync not installed";   exit 1; }
 	@command -v ufw     >/dev/null 2>&1 || { echo "ERROR: ufw not installed";     exit 1; }
+	@command -v mkcert  >/dev/null 2>&1 || { echo "ERROR: mkcert not installed. Install: sudo apt install mkcert"; exit 1; }
 	@echo "[check] All prerequisites satisfied."
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -170,6 +176,28 @@ certs-docker:
 	@echo "[certs-docker] Generating Docker mTLS certificates..."
 	@DOCKER_HOST_IP=$(HOST_IP) sudo -E bash $(DOCKER_SCRIPTS)/manage_docker_certs.sh generate
 	@echo "[certs-docker] Done. Restart Docker: sudo systemctl restart docker"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Certificate management with mkcert (supersedes certs-traefik / certs-docker)
+# CAROOT is fixed at /opt/Odoo_rafa/mkcert-ca on the server.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Show expiry status for all certs — no changes made.
+certs-status:
+	@HOST_IP=$(HOST_IP) DOMAIN=$(DOMAIN) bash $(SCRIPTS_DIR)/renew_certs.sh --status
+
+# Auto-renew leaf certs expiring within 30 days (safe to run from cron).
+certs-renew:
+	@HOST_IP=$(HOST_IP) DOMAIN=$(DOMAIN) bash $(SCRIPTS_DIR)/renew_certs.sh
+
+# Force-regenerate all leaf certs regardless of expiry (test / after CA rotation).
+certs-force-renew:
+	@HOST_IP=$(HOST_IP) DOMAIN=$(DOMAIN) bash $(SCRIPTS_DIR)/renew_certs.sh --force
+
+# MANUAL: rotate the mkcert CA (interactive — requires typing ROTATE, destroys client trust).
+# Never run this from automation. After rotation all browsers must re-import the new CA.
+certs-rotate-ca:
+	@HOST_IP=$(HOST_IP) DOMAIN=$(DOMAIN) bash $(SCRIPTS_DIR)/rotate_ca.sh
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Deploy hw_proxy (venv + code sync)

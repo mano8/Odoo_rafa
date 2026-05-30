@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD024 -->
 # Changelog
 
 All notable changes to this project are documented here.
@@ -8,6 +9,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased] — Secure branch
 
 ### Added
+
+- **`make certs-status`** — prints expiry state for all leaf certs (Traefik TLS, Docker
+  mTLS CA, Docker mTLS client) without making any changes. Safe to run from cron/monitoring.
+
+- **`make certs-renew`** — auto-renews any leaf cert expiring within 30 days using mkcert.
+  Restarts only Traefik (no Docker daemon restart needed for leaf renewal). Idempotent —
+  safe to run on a schedule.
+
+- **`make certs-force-renew`** — unconditionally regenerates all leaf certs. Use after a
+  CA rotation or to test that the renewal path works end-to-end.
+
+- **`make certs-rotate-ca`** — interactive-only CA rotation (`rotate_ca.sh`). Requires
+  typing `ROTATE` to proceed. Stops the compose stack before deleting the CA (prevents a
+  TLS mismatch window), regenerates all certs, restarts the Docker daemon, then brings
+  the stack back up. Intentionally kept separate from `certs-renew` so it cannot be
+  triggered automatically.
+
+- **`renew_certs.sh`** (`docker-compose/scripts/`) — mkcert-based leaf cert renewal
+  script. Supports `--status`, `--force`, and auto-check modes. CAROOT fixed at
+  `/opt/Odoo_rafa/mkcert-ca`.
+
+- **`rotate_ca.sh`** (`docker-compose/scripts/`) — manual-only CA rotation script with
+  interactive confirmation gate.
 
 - **`make monitoring-reload-prometheus`** — sends `SIGHUP` to Prometheus for
   zero-downtime config reload after editing `prometheus.yml`. Does not restart

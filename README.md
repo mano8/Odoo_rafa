@@ -136,6 +136,10 @@ make restore-volumes BACKUP=<path>  # restore from a snapshot directory
 make monitoring-reload      # reload Prometheus config (SIGHUP) + restart Grafana
 make monitoring-reload-prometheus  # reload prometheus.yml only — zero downtime
 make monitoring-reload-grafana     # restart Grafana to apply provisioning/dashboard changes
+make certs-status           # show expiry dates for all TLS/mTLS certs
+make certs-renew            # auto-renew certs expiring within 30 days
+make certs-force-renew      # force-regenerate all leaf certs
+make certs-rotate-ca        # MANUAL: rotate CA (interactive, destructive)
 make logs                   # follow all container logs
 ```
 
