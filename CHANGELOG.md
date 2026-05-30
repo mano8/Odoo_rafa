@@ -55,16 +55,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (userns-remap compatible), re-applies `auto_chown_volumes.sh`, then restarts
   both stacks.
 
-- **`hw_proxy` test print fix** — `GET /hw_proxy/system/print_ticket` (the
-  "Imprimir Ticket de Prueba" button in hw_status) was performing only a paper
-  cut with no printed content. It now sends a real test receipt through the full
-  ESC/POS JSON pipeline before cutting.
+- **`hw_proxy` disk_free_bytes metric** — new Prometheus gauge tracks free disk
+  space on the root mountpoint, updated every 30 s. Corresponding Grafana panel
+  added to the hw_proxy dashboard.
 
 - **`pos_json_printer` i18n** — session report section headers (`SOLD:`,
   `REFUNDED:`, `Payments:`, `Taxes:`, `Total:`, `Discount`) are now translated
   via Odoo's `_t()` mechanism. Spanish translations added to `i18n/es.po`.
 
 ### Fixed
+
+- **`hw_proxy` test print** — `GET /hw_proxy/system/print_ticket` (the
+  "Imprimir Ticket de Prueba" button in hw_status) was performing only a paper
+  cut with no printed content. It now sends a real test receipt through the full
+  ESC/POS JSON pipeline before cutting.
+
+- **`hw_proxy` Grafana gauges blank when POS is idle** — `printer_online` and
+  `printer_paper_ok` gauges were only updated when Odoo POS called `/status_json`.
+  A background task now polls printer status every 60 s so panels stay current.
+  Counter label combinations (`print_jobs_total`, `cashdrawer_operations_total`)
+  are pre-initialized at startup so panels show a flat 0 line before the first event.
 
 - **`pos_json_printer` session report layout** — replaced DOM scanning for the
   Z-report with a direct `get_sale_details` RPC data builder. DOM scanning was
@@ -78,7 +88,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   so both the hamburger menu and the close-session button route through the same
   JSON printing pipeline.
 
-- **`hw_proxy` version** bumped to `0.0.3`.
+- **`hw_proxy` version** bumped to `0.0.4`.
 
 - **`pos_json_printer` version** bumped to `18.0.0.17.0`.
 
@@ -97,9 +107,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   touching the Docker stack.
 - `update-odoo-addon` Makefile target for focused addon deploys.
 - hw_status service logs panel and dynamic services status grid.
-- hw_proxy Prometheus metrics endpoint (`/hw_proxy/metrics`).
-- `pos_json_printer` addon: JSON receipt pipeline (DOM scan → structured lines →
-  ESC/POS), font size selector (Small/Normal/Big), CP858 encoding for `€`.
+- hw_proxy Prometheus metrics endpoint (`/hw_proxy/metrics`) with print jobs,
+  cash drawer ops, HTTP latency, and serial write duration counters/histograms.
+- `pos_json_printer` addon: JSON receipt pipeline (structured lines → ESC/POS),
+  font size selector (Small/Normal/Big), CP858 encoding for `€`.
 
 ### Fixed
 
@@ -115,3 +126,5 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   root, avoiding `dubious ownership` errors.
 - Prometheus scrape target updated to `10.254.254.1:9002` after hw_proxy bind
   address change.
+- `pos_json_printer` tax group lines were merging into the separator on the
+  global receipt when multiple tax groups were present.
