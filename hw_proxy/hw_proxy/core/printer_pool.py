@@ -129,7 +129,26 @@ class PrinterPool:
     @property
     def devfile(self) -> str:
         h = self._helper or EscPosHelper(self._device_key)
-        return h.device.conf.devfile if h.device else "/dev/ttyACM0"
+        conf = h.device.conf if h.device else None
+        # Network/emulated devices have no devfile (host/port instead); fall
+        # back to the conventional serial path so callers never crash.
+        return getattr(conf, "devfile", None) or "/dev/ttyACM0"
+
+    @staticmethod
+    def _flush(printer) -> None:
+        """Drain the transport's write buffer if it supports flushing.
+
+        pyserial devices expose ``flush()`` (tcdrain — block until the USB-CDC
+        FIFO has serialised every byte to the printer UART), which is what paces
+        the serial path.  An escpos ``Network`` device's ``device`` is a raw
+        socket whose ``sendall`` already pushed the bytes, so there is nothing
+        to flush — this is a no-op there.  Keeps the write path transport-
+        agnostic without changing serial behaviour.
+        """
+        device = getattr(printer, "device", None)
+        flush = getattr(device, "flush", None)
+        if callable(flush):
+            flush()
 
     def open(self) -> None:
         self._helper = EscPosHelper(self._device_key)
@@ -229,7 +248,7 @@ class PrinterPool:
                 # tcdrain on Linux USB-CDC/ACM blocks until the USB device
                 # has serialised all bytes to the printer UART, so flush()
                 # already provides the full drain wait.  No extra sleep needed.
-                h.printer.device.flush()
+                self._flush(h.printer)
                 dur = time.perf_counter() - t0
                 serial_write_duration_seconds.observe(dur)
                 logger.info(
@@ -260,7 +279,7 @@ class PrinterPool:
                 t0 = time.perf_counter()
                 for start in range(0, len(payload), chunk_size):
                     h.printer._raw(payload[start : start + chunk_size])
-                    h.printer.device.flush()
+                    self._flush(h.printer)
                     if chunk_delay_s > 0:
                         time.sleep(chunk_delay_s)
                 dur = time.perf_counter() - t0
@@ -313,13 +332,13 @@ class PrinterPool:
         try:
             h = self._ensure()
             h.printer._raw(_CMD_CLEAR_BUFFERS)
-            h.printer.device.flush()
+            self._flush(h.printer)
         except Exception as e:
             logger.warning("[PrinterPool] buffer-clear failed: %s", e)
         self._reconnect()
         h = self._ensure()
         h.printer._raw(_CMD_INIT)
-        h.printer.device.flush()
+        self._flush(h.printer)
 
     def _sync_cut(self) -> None:
         # Close then reopen: USB reconnect handshake brings the printer back ONLINE.
@@ -331,7 +350,7 @@ class PrinterPool:
                 h = self._ensure()
                 h.printer._raw(_CMD_INIT)
                 h.printer.cut(feed=True)
-                h.printer.device.flush()
+                self._flush(h.printer)
                 return
             except Exception as e:
                 if attempt == 0:
@@ -345,7 +364,7 @@ class PrinterPool:
             try:
                 h = self._ensure()
                 h.printer._raw(_CMD_CASHDRAWER)
-                h.printer.device.flush()
+                self._flush(h.printer)
                 return
             except Exception as e:
                 if attempt == 0:

@@ -1,0 +1,18 @@
+*.env*
+!*.env.example
+*.crt
+*.pem
+*.key
+
+# Odoo volumes (this stack's own mutable state); addons/config are local copies
+# of the repo's canonical odoo_addons/, so they are not tracked here.
+odoo/data/*
+odoo/addons/*
+odoo/config/*
+*odoo.conf
+
+# Postgres SQL volumes
+postgres/pgdata/*
+
+grafana_data/*
+prometheus_data/*

@@ -218,7 +218,12 @@ async def _ups_metrics_task() -> None:
                 ups_online.set(1 if "OL" in flags else 0)
                 ups_on_battery.set(1 if "OB" in flags else 0)
                 ups_low_battery.set(1 if "LB" in flags else 0)
-        except (FileNotFoundError, asyncio.TimeoutError, OSError) as exc:
+        except FileNotFoundError:
+            # upsc binary not installed (e.g. emulator/dev containers): there is
+            # nothing to poll, so disable the task instead of logging every 30 s.
+            logger.info("[ups_metrics_task] upsc not installed; UPS metrics disabled.")
+            return
+        except (asyncio.TimeoutError, OSError) as exc:
             logger.debug("[ups_metrics_task] upsc unavailable: %s", exc)
         except Exception as exc:
             logger.warning("[ups_metrics_task] failed: %s", exc)

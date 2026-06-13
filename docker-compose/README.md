@@ -5,6 +5,16 @@ A production-ready Docker Compose stack for **Odoo 18**, **PostgreSQL 13**, **Tr
 * **Online mode**: pull images and dependencies from the Internet (default).
 * **Offline mode**: run fully air-gapped after pre-caching images and Python wheels.
 
+## Development stacks
+
+* [`odoo_dev_offline/`](./odoo_dev_offline) — dev stack wired to the **real**
+  PP6800 over `/dev/ttyACM0`.
+* [`odoo_dev_emulated/`](./odoo_dev_emulated) — identical stack but with **no
+  hardware**: hw_proxy talks to the controllable ESC/POS
+  [`emulated_printer`](../emulated_printer) over TCP. Use it to reproduce the
+  receipt-drop overflow and validate the print-pacing strategies and reset
+  recovery from the hw_status tuning UI.
+
 ---
 
 ## Table of contents
