@@ -110,7 +110,79 @@
         </div>
     </main>
 
-    <!-- Fila 2: Registros de Errores (ancho completo) -->
+    <!-- Fila 2: Ajuste de Impresora (ancho completo) -->
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                        <h2 class="card-title h5 mb-0">Ajuste de Impresora</h2>
+                        <span id="printerTuningStatus" class="small text-muted"></span>
+                    </div>
+                    <div class="row g-3 align-items-end mb-3">
+                        <div class="col-md-3 col-6">
+                            <label for="ptStrategy" class="form-label small fw-medium mb-1">Estrategia</label>
+                            <select id="ptStrategy" class="form-select form-select-sm">
+                                <option value="pace">pace</option>
+                                <option value="chunked">chunked</option>
+                                <option value="status_poll">status_poll</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <label for="ptPaceBase" class="form-label small fw-medium mb-1">Pausa base (ms)</label>
+                            <input type="number" id="ptPaceBase" class="form-control form-control-sm" min="0" max="10000">
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <label for="ptPacePerLine" class="form-label small fw-medium mb-1">Pausa/línea (ms)</label>
+                            <input type="number" id="ptPacePerLine" class="form-control form-control-sm" min="0" max="2000">
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <label for="ptChunkSize" class="form-label small fw-medium mb-1">Tamaño bloque (B)</label>
+                            <input type="number" id="ptChunkSize" class="form-control form-control-sm" min="16" max="4096">
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <label for="ptChunkDelay" class="form-label small fw-medium mb-1">Pausa bloque (ms)</label>
+                            <input type="number" id="ptChunkDelay" class="form-control form-control-sm" min="0" max="2000">
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <label for="ptPollTimeout" class="form-label small fw-medium mb-1">Timeout sondeo (ms)</label>
+                            <input type="number" id="ptPollTimeout" class="form-control form-control-sm" min="0" max="60000">
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <label for="ptPollInterval" class="form-label small fw-medium mb-1">Intervalo sondeo (ms)</label>
+                            <input type="number" id="ptPollInterval" class="form-control form-control-sm" min="10" max="5000">
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <button id="btnApplyPrintSettings" class="btn btn-primary btn-sm w-100">
+                                <i class="fas fa-check me-1"></i>Aplicar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap align-items-end gap-3">
+                        <div>
+                            <label for="ptBatchCount" class="form-label small fw-medium mb-1">Nº recibos</label>
+                            <input type="number" id="ptBatchCount" class="form-control form-control-sm" style="width:90px;" min="1" max="100" value="10">
+                        </div>
+                        <div>
+                            <label for="ptBatchLines" class="form-label small fw-medium mb-1">Líneas/recibo</label>
+                            <input type="number" id="ptBatchLines" class="form-control form-control-sm" style="width:90px;" min="1" max="50" value="6">
+                        </div>
+                        <button id="btnPrintTestBatch" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-layer-group me-1"></i>Lote de prueba
+                        </button>
+                        <button id="btnClearPrintQueue" class="btn btn-outline-warning btn-sm">
+                            <i class="fas fa-eraser me-1"></i>Vaciar cola
+                        </button>
+                        <button id="btnResetPrinter" class="btn btn-outline-danger btn-sm">
+                            <i class="fas fa-power-off me-1"></i>Reiniciar impresora
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fila 3: Registros de Errores (ancho completo) -->
     <div class="row mt-3">
         <div class="col-12">
             <div class="card">
@@ -201,6 +273,20 @@ const App = {
         servicesStatusGrid: document.getElementById('servicesStatusGrid'),
         servicesLastUpdate: document.getElementById('servicesLastUpdate'),
         btnRefreshServices: document.getElementById('btnRefreshServices'),
+        printerTuningStatus: document.getElementById('printerTuningStatus'),
+        ptStrategy: document.getElementById('ptStrategy'),
+        ptPaceBase: document.getElementById('ptPaceBase'),
+        ptPacePerLine: document.getElementById('ptPacePerLine'),
+        ptChunkSize: document.getElementById('ptChunkSize'),
+        ptChunkDelay: document.getElementById('ptChunkDelay'),
+        ptPollTimeout: document.getElementById('ptPollTimeout'),
+        ptPollInterval: document.getElementById('ptPollInterval'),
+        btnApplyPrintSettings: document.getElementById('btnApplyPrintSettings'),
+        ptBatchCount: document.getElementById('ptBatchCount'),
+        ptBatchLines: document.getElementById('ptBatchLines'),
+        btnPrintTestBatch: document.getElementById('btnPrintTestBatch'),
+        btnClearPrintQueue: document.getElementById('btnClearPrintQueue'),
+        btnResetPrinter: document.getElementById('btnResetPrinter'),
         btnShutdown: document.getElementById('btn-shutdown'),
         btnReboot: document.getElementById('btn-reboot'),
         confirmationModal: document.getElementById('confirmationModal'),
@@ -244,6 +330,15 @@ const App = {
             try { return await this._fetch(`${this._base}/services/status`); }
             catch { return null; }
         },
+        async getPrintSettings() { return this._fetch(`${this._base}/print_settings`); },
+        async setPrintSettings(settings) {
+            return this._fetch(`${this._base}/print_settings`, { method: 'POST', body: JSON.stringify(settings) });
+        },
+        async printTestBatch(count, lines) {
+            return this._fetch(`${this._base}/print_test_batch?count=${count}&lines=${lines}`);
+        },
+        async clearPrintQueue() { return this._fetch(`${this._base}/clear_print_queue`, { method: 'POST' }); },
+        async resetPrinter() { return this._fetch(`${this._base}/reset_printer`, { method: 'POST' }); },
         async shutdown() {
             try { await this._fetch(`${this._base}/shutdown`, { method: 'POST' }); return true; }
             catch { return false; }
@@ -398,6 +493,57 @@ const App = {
         },
     },
 
+    PrinterTuningManager: {
+        _fill(s) {
+            App.UI.ptStrategy.value = s.strategy;
+            App.UI.ptPaceBase.value = s.pace_base_ms;
+            App.UI.ptPacePerLine.value = s.pace_per_line_ms;
+            App.UI.ptChunkSize.value = s.chunk_size;
+            App.UI.ptChunkDelay.value = s.chunk_delay_ms;
+            App.UI.ptPollTimeout.value = s.status_poll_timeout_ms;
+            App.UI.ptPollInterval.value = s.status_poll_interval_ms;
+        },
+        _status(msg, kind = 'muted') {
+            App.UI.printerTuningStatus.textContent = msg;
+            App.UI.printerTuningStatus.className = `small text-${kind}`;
+        },
+        async load() {
+            try { this._fill(await App.API.getPrintSettings()); this._status('Ajustes cargados.'); }
+            catch (e) { this._status(`Error al cargar ajustes: ${e.message}`, 'danger'); }
+        },
+        async apply() {
+            const settings = {
+                strategy: App.UI.ptStrategy.value,
+                pace_base_ms: Number(App.UI.ptPaceBase.value),
+                pace_per_line_ms: Number(App.UI.ptPacePerLine.value),
+                chunk_size: Number(App.UI.ptChunkSize.value),
+                chunk_delay_ms: Number(App.UI.ptChunkDelay.value),
+                status_poll_timeout_ms: Number(App.UI.ptPollTimeout.value),
+                status_poll_interval_ms: Number(App.UI.ptPollInterval.value),
+            };
+            this._status('Aplicando ajustes...');
+            try { this._fill(await App.API.setPrintSettings(settings)); this._status('Ajustes aplicados.', 'success'); }
+            catch (e) { this._status(`Error al aplicar ajustes: ${e.message}`, 'danger'); }
+        },
+        async testBatch() {
+            const count = Number(App.UI.ptBatchCount.value) || 1;
+            const lines = Number(App.UI.ptBatchLines.value) || 1;
+            this._status(`Encolando ${count} recibos de prueba...`);
+            try { const d = await App.API.printTestBatch(count, lines); this._status(`Encolados ${d.queued} recibos de prueba.`, 'success'); }
+            catch (e) { this._status(`Error al encolar lote de prueba: ${e.message}`, 'danger'); }
+        },
+        async clearQueue() {
+            this._status('Vaciando cola...');
+            try { const d = await App.API.clearPrintQueue(); this._status(`${d.cleared} trabajos pendientes eliminados.`, 'success'); }
+            catch (e) { this._status(`Error al vaciar la cola: ${e.message}`, 'danger'); }
+        },
+        async resetPrinter() {
+            this._status('Reiniciando impresora...');
+            try { const d = await App.API.resetPrinter(); this._status(`Impresora reiniciada (${d.cleared} trabajos eliminados).`, 'success'); }
+            catch (e) { this._status(`Error al reiniciar la impresora: ${e.message}`, 'danger'); }
+        },
+    },
+
     ModalManager: {
         showConfirmation(msg, cb) {
             App.UI.modalMessage.textContent = msg;
@@ -460,6 +606,12 @@ const App = {
         App.UI.btnRefreshServiceLogs.addEventListener('click', () => App.LogsManager.fetch());
         App.UI.btnExpandServiceLogs.addEventListener('click', () => App.LogsManager.expand());
         App.UI.btnRefreshServices.addEventListener('click', () => App.ServicesManager.fetch());
+        App.UI.btnApplyPrintSettings.addEventListener('click', () => App.PrinterTuningManager.apply());
+        App.UI.btnPrintTestBatch.addEventListener('click', () => App.PrinterTuningManager.testBatch());
+        App.UI.btnClearPrintQueue.addEventListener('click', () => App.PrinterTuningManager.clearQueue());
+        App.UI.btnResetPrinter.addEventListener('click', () =>
+            App.ModalManager.showConfirmation('¿Reiniciar la impresora? Se vaciará la cola pendiente y el búfer de la impresora.', () => { App.ModalManager.hideConfirmation(); App.PrinterTuningManager.resetPrinter(); })
+        );
         App.UI.btnShutdown.addEventListener('click', () =>
             App.ModalManager.showConfirmation('¿Está seguro que desea apagar el servidor?', App.ActionHandler.shutdown)
         );
@@ -475,6 +627,7 @@ const App = {
         };
         App.StatusManager.update();
         App.ServicesManager.fetch();
+        App.PrinterTuningManager.load();
     },
 };
 
