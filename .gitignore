@@ -205,3 +205,9 @@ docker/certs/*.pem
 docker/certs/*.key
 mkcert-ca/
 docker-compose/*/traefik/acme.json
+receipt_debug.png
+.claude/settings.local.json
+.claude/plans/fix-printer-drop-receipts.md
+
+# Claude Code project guidelines (local, not shared)
+CLAUDE.md
