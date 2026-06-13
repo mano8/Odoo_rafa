@@ -27,18 +27,31 @@ import asyncio
 import logging
 import time
 import warnings
-from typing import Optional
+from typing import Optional, get_args
 
 from escpos.printer import Dummy
 from PIL import Image, ImageOps
 
 from hw_proxy.core.exceptions import HwPrinterError
-from hw_proxy.metrics import serial_write_duration_seconds
-from hw_proxy.schemas.printer import PrintSettings
+from hw_proxy.metrics import (
+    print_duration_seconds,
+    print_jobs_total,
+    print_overflow_bytes_total,
+    print_overflow_events_total,
+    print_queue_depth,
+    print_setting,
+    print_strategy_active,
+    printer_buffer_size_bytes,
+    serial_write_duration_seconds,
+)
+from hw_proxy.schemas.printer import PrintSettings, PrintStrategy
 from hw_proxy.schemas.receipt import PrintReceiptJsonRequest
 from hw_proxy.tools.pos_helper import EscPosHelper
 
 logger = logging.getLogger("hw_proxy")
+
+# All flow-control strategies, for publishing the active one as a metric.
+_PRINT_STRATEGIES = get_args(PrintStrategy)
 
 # Width/height ESC/POS multipliers per size level (1-indexed; index 0 unused).
 # Level 1 (Small):  1× wide, 1× tall  → 42 chars/line
@@ -77,13 +90,17 @@ _RECEIPT_LINE_WIDTH = 42
 class PrinterPool:
     """Singleton managing one persistent ESC/POS serial connection."""
 
-    def __init__(self, device_key: str) -> None:
+    def __init__(
+        self,
+        device_key: str,
+        settings: Optional[PrintSettings] = None,
+    ) -> None:
         self._device_key = device_key
         self._helper: Optional[EscPosHelper] = None
         self._lock: Optional[asyncio.Lock] = None
         self._last_status: dict = {"is_online": None, "paper_status": "unknown"}
         self._last_write_error: Optional[str] = None
-        self._settings = PrintSettings()
+        self._settings = settings or PrintSettings()
         self._queue: Optional[asyncio.Queue] = None
         self._worker_task: Optional[asyncio.Task] = None
 
@@ -120,7 +137,29 @@ class PrinterPool:
         """
         merged = {**self._settings.model_dump(), **partial}
         self._settings = PrintSettings(**merged)
+        self.publish_settings_metrics()
         return self._settings
+
+    def publish_settings_metrics(self) -> None:
+        """Mirror the live Printer Tuning config into Prometheus gauges.
+
+        Called at startup and on every settings change so the dashboard can
+        show which strategy and parameters were active during a print session.
+        """
+        s = self._settings
+        for name in _PRINT_STRATEGIES:
+            print_strategy_active.labels(strategy=name).set(
+                1 if s.strategy == name else 0
+            )
+        for name in (
+            "pace_base_ms",
+            "pace_per_line_ms",
+            "chunk_size",
+            "chunk_delay_ms",
+            "status_poll_timeout_ms",
+            "status_poll_interval_ms",
+        ):
+            print_setting.labels(setting=name).set(getattr(s, name))
 
     # ------------------------------------------------------------------ #
     # Connection management (sync — called from thread pool)              #
@@ -153,6 +192,11 @@ class PrinterPool:
     def open(self) -> None:
         self._helper = EscPosHelper(self._device_key)
         self._helper.init_printer()
+        # Publish the printer's configured input-buffer size so the dashboard
+        # can show how close a batch comes to overflowing it (0 if unknown).
+        device = self._helper.device
+        printer_buffer_size_bytes.set(getattr(device, "buffer_size", None) or 0)
+        self.publish_settings_metrics()
         logger.info("[PrinterPool] Serial port opened.")
 
     def _close(self) -> None:
@@ -413,10 +457,17 @@ class PrinterPool:
         queue = self._job_queue
         while True:
             payload, n_lines = await queue.get()
+            print_queue_depth.set(queue.qsize())
             try:
                 await self._write_with_strategy(payload, n_lines)
+                print_jobs_total.labels(action="receipt", result="printed").inc()
             except Exception as e:
                 self._last_write_error = str(e)
+                print_jobs_total.labels(action="receipt", result="error").inc()
+                print_overflow_events_total.labels(cause="write_error").inc()
+                print_overflow_bytes_total.labels(cause="write_error").inc(
+                    len(payload)
+                )
                 logger.error("[PrinterPool] Drain worker write error: %s", e)
             finally:
                 queue.task_done()
@@ -456,6 +507,7 @@ class PrinterPool:
     def _enqueue(self, payload: bytes, n_lines: int = 0) -> None:
         """Append a write job to the drain queue (never blocks)."""
         self._job_queue.put_nowait((payload, n_lines))
+        print_queue_depth.set(self._job_queue.qsize())
 
     # ------------------------------------------------------------------ #
     # Recovery                                                            #
@@ -465,15 +517,20 @@ class PrinterPool:
         """Discard all pending jobs without printing them.  Returns the count."""
         queue = self._job_queue
         cleared = 0
+        dropped_bytes = 0
         while True:
             try:
-                queue.get_nowait()
+                payload, _ = queue.get_nowait()
             except asyncio.QueueEmpty:
                 break
             queue.task_done()
             cleared += 1
+            dropped_bytes += len(payload)
         if cleared:
+            print_overflow_events_total.labels(cause="dropped").inc(cleared)
+            print_overflow_bytes_total.labels(cause="dropped").inc(dropped_bytes)
             logger.warning("[PrinterPool] Cleared %d pending job(s).", cleared)
+        print_queue_depth.set(queue.qsize())
         return cleared
 
     async def reset_printer(self) -> int:
@@ -690,10 +747,17 @@ class PrinterPool:
         batch cannot overflow the printer's small input buffer.  An overflow is
         recoverable via ``clear_queue``/``reset_printer``.
         """
+        t0 = time.perf_counter()
         payload = await asyncio.to_thread(self._encode_json_receipt, data)
         self._enqueue(payload, len(data.lines))
         if data.open_cashdrawer:
             self._enqueue(_CMD_CASHDRAWER)
+        # API response time = encode + queue (not the hardware write, which the
+        # drain worker does later).  Recorded here so it covers every caller —
+        # the Odoo route, the test batch, and the individual-ticket path alike.
+        print_duration_seconds.labels(action="print_receipt_json").observe(
+            time.perf_counter() - t0
+        )
         return True
 
     async def default_action(self, action: str, receipt: Optional[str] = None) -> bool:

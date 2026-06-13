@@ -258,7 +258,7 @@ async def _printer_status_task(pool: PrinterPool) -> None:
 
 @app.on_event("startup")
 async def _startup() -> None:
-    pool = PrinterPool(settings.PRINTER_KEY)
+    pool = PrinterPool(settings.PRINTER_KEY, settings.print_settings)
     try:
         await asyncio.to_thread(pool.open)
     except Exception as e:

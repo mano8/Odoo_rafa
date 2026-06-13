@@ -35,7 +35,8 @@ class DeviceHelper:
                         port_type=device.get('port_type'),
                         config=device.get('conf')),
                     image_conf=image_conf,
-                    print_width=device.get('print_width')
+                    print_width=device.get('print_width'),
+                    buffer_size=device.get('buffer_size')
                 )
         return None
 

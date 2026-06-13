@@ -43,6 +43,9 @@ device_list = [
         # PP6800 firmware silently drops data past its ~90 KB job buffer,
         # truncating the bottom of the receipt.  Keep at 512 (no resize needed).
         "print_width": 512,
+        # Approximate firmware job-buffer size (~90 KB); surfaced as the
+        # hw_proxy_printer_buffer_size_bytes gauge for the overflow dashboard.
+        "buffer_size": 92160,
         "image_conf": {
             # bitImageColumn (ESC *) instead of bitImageRaster (GS v 0):
             # PP6800 firmware silently drops GS v 0 raster data past ~2
@@ -74,6 +77,9 @@ device_list = [
             "port": int(os.environ.get("EMULATED_PRINTER_PORT", "9100")),
         },
         "print_width": 512,
+        # Matches the emulator profile buffer (config/pp6800.yml); the emulator
+        # also exports its own ground-truth buffer_size metric.
+        "buffer_size": 12288,
         "image_conf": {
             "impl": "bitImageColumn",
             "center": False,
