@@ -34,6 +34,7 @@ from PIL import Image, ImageOps
 
 from hw_proxy.core.exceptions import HwPrinterError
 from hw_proxy.metrics import serial_write_duration_seconds
+from hw_proxy.schemas.printer import PrintSettings
 from hw_proxy.schemas.receipt import PrintReceiptJsonRequest
 from hw_proxy.tools.pos_helper import EscPosHelper
 
@@ -50,8 +51,27 @@ _CMD_CASHDRAWER = b"\x1b\x70\x00\x19\xfa"
 # ESC @ — initialize printer (resets all modes to power-on defaults)
 # Prepended to every job so printer state from a previous job never bleeds through.
 _CMD_INIT = b"\x1b\x40"
+# DLE ENQ 2 — real-time request: clear both the input data buffer and the
+# print buffer.  Used by reset_printer() to unwedge an overflowed printer.
+_CMD_CLEAR_BUFFERS = b"\x10\x05\x02"
 # PP6800 font A: 42 chars/line (tested; pixel width controlled by print_width in supported_devices.py)
 _RECEIPT_LINE_WIDTH = 42
+
+# ─── Print pacing (buffer flow-control) ──────────────────────────────────────
+# The JSON receipt path is fire-and-forget: a ~2 KB job drains to the printer's
+# input buffer in ~0.2 s, far faster than the head prints it.  The PP6800 buffer
+# holds only ~6 small receipts, so a batch of 7+ overflows it and drops receipts.
+# The old raster path never hit this because its 56 KB image took ~4.86 s to
+# transfer, which paced the printer for free.
+#
+# To restore that flow-control every JSON job is funnelled through a single
+# drain worker that serialises writes and applies one of three runtime-tunable
+# strategies (pace / chunked / status_poll, see PrintSettings) so the next job
+# cannot refill the buffer until the previous receipt has mostly printed.  This
+# caps in-buffer occupancy at ~1 receipt regardless of batch size.  An explicit,
+# drainable queue also makes overflow recoverable: clear_queue()/reset_printer()
+# can flush pending jobs and clear the printer buffer so a jam never blocks
+# future prints.
 
 
 class PrinterPool:
@@ -63,9 +83,12 @@ class PrinterPool:
         self._lock: Optional[asyncio.Lock] = None
         self._last_status: dict = {"is_online": None, "paper_status": "unknown"}
         self._last_write_error: Optional[str] = None
+        self._settings = PrintSettings()
+        self._queue: Optional[asyncio.Queue] = None
+        self._worker_task: Optional[asyncio.Task] = None
 
     # ------------------------------------------------------------------ #
-    # Lock — created lazily inside the running event loop                 #
+    # Lock / queue — created lazily inside the running event loop          #
     # ------------------------------------------------------------------ #
 
     @property
@@ -73,6 +96,31 @@ class PrinterPool:
         if self._lock is None:
             self._lock = asyncio.Lock()
         return self._lock
+
+    @property
+    def _job_queue(self) -> "asyncio.Queue":
+        if self._queue is None:
+            self._queue = asyncio.Queue()
+        return self._queue
+
+    # ------------------------------------------------------------------ #
+    # Runtime settings                                                     #
+    # ------------------------------------------------------------------ #
+
+    def get_settings(self) -> PrintSettings:
+        """Return the current (live) print settings."""
+        return self._settings
+
+    def update_settings(self, **partial) -> PrintSettings:
+        """Apply a partial settings update with range validation.
+
+        Builds a fresh validated ``PrintSettings`` from the current values
+        merged with ``partial`` (so out-of-range values raise pydantic's
+        ``ValidationError``), then swaps it in atomically.
+        """
+        merged = {**self._settings.model_dump(), **partial}
+        self._settings = PrintSettings(**merged)
+        return self._settings
 
     # ------------------------------------------------------------------ #
     # Connection management (sync — called from thread pool)              #
@@ -196,6 +244,83 @@ class PrinterPool:
                 else:
                     raise HwPrinterError(f"[PrinterPool] Write failed: {e}") from e
 
+    def _sync_raw_write_chunked(
+        self, payload: bytes, chunk_size: int, chunk_delay_s: float
+    ) -> None:
+        """Write the payload in ``chunk_size`` slices, sleeping between each.
+
+        Bytes never arrive faster than the head prints, so the printer's input
+        buffer occupancy stays bounded even within one large receipt.  Retries
+        the whole write once (via reconnect) on the first error, like
+        ``_sync_raw_write``.
+        """
+        for attempt in range(2):
+            try:
+                h = self._ensure()
+                t0 = time.perf_counter()
+                for start in range(0, len(payload), chunk_size):
+                    h.printer._raw(payload[start : start + chunk_size])
+                    h.printer.device.flush()
+                    if chunk_delay_s > 0:
+                        time.sleep(chunk_delay_s)
+                dur = time.perf_counter() - t0
+                serial_write_duration_seconds.observe(dur)
+                logger.info(
+                    "[PrinterPool] chunked_write=%.3fs  payload=%d bytes  chunk=%d",
+                    dur,
+                    len(payload),
+                    chunk_size,
+                )
+                return
+            except Exception as e:
+                if attempt == 0:
+                    self._reconnect()
+                else:
+                    raise HwPrinterError(
+                        f"[PrinterPool] Chunked write failed: {e}"
+                    ) from e
+
+    def _sync_wait_ready(self, timeout_s: float, interval_s: float) -> bool:
+        """Poll the printer's in-band online status until ready or timeout.
+
+        Uses ``is_online()`` (DLE EOT real-time status) rather than the DSR
+        modem line so it works over both serial and network transports.
+        Returns True once the printer reports ready, False on timeout.
+        """
+        deadline = time.perf_counter() + timeout_s
+        while True:
+            try:
+                h = self._ensure()
+                if h.printer.is_online():
+                    return True
+            except Exception as e:
+                logger.debug("[PrinterPool] wait_ready poll error: %s", e)
+            if time.perf_counter() >= deadline:
+                logger.warning(
+                    "[PrinterPool] status_poll timed out after %.1fs", timeout_s
+                )
+                return False
+            time.sleep(interval_s)
+
+    def _sync_reset(self) -> None:
+        """Clear the printer's buffers and re-initialise it.
+
+        Sends the real-time buffer-clear (DLE ENQ 2), then close/reopen the USB
+        connection (the same hammer ``_sync_cut`` uses to force the printer back
+        ONLINE) and ESC @ to reset the command parser.  Unwedges an overflowed
+        printer so the next job starts from a clean state.
+        """
+        try:
+            h = self._ensure()
+            h.printer._raw(_CMD_CLEAR_BUFFERS)
+            h.printer.device.flush()
+        except Exception as e:
+            logger.warning("[PrinterPool] buffer-clear failed: %s", e)
+        self._reconnect()
+        h = self._ensure()
+        h.printer._raw(_CMD_INIT)
+        h.printer.device.flush()
+
     def _sync_cut(self) -> None:
         # Close then reopen: USB reconnect handshake brings the printer back ONLINE.
         # A persistent open connection can leave the printer in OFFLINE state where
@@ -250,11 +375,106 @@ class PrinterPool:
                     }
 
     # ------------------------------------------------------------------ #
-    # Background write task                                               #
+    # Queue + drain worker + strategies                                   #
     # ------------------------------------------------------------------ #
 
+    def start_worker(self) -> None:
+        """Start the long-lived drain worker (idempotent).
+
+        Called once at app startup.  All queued jobs are written by this single
+        coroutine, which guarantees ordering and gives clear/reset a single
+        place to intervene.
+        """
+        if self._worker_task is None or self._worker_task.done():
+            self._worker_task = asyncio.create_task(self._drain_worker())
+            logger.info("[PrinterPool] Drain worker started.")
+
+    async def _drain_worker(self) -> None:
+        """Pull jobs off the queue and write them one at a time, forever."""
+        queue = self._job_queue
+        while True:
+            payload, n_lines = await queue.get()
+            try:
+                await self._write_with_strategy(payload, n_lines)
+            except Exception as e:
+                self._last_write_error = str(e)
+                logger.error("[PrinterPool] Drain worker write error: %s", e)
+            finally:
+                queue.task_done()
+
+    async def _write_with_strategy(self, payload: bytes, n_lines: int) -> None:
+        """Write one job under the lock, applying the active pacing strategy.
+
+        The pace sleep / status poll runs while the lock is held so the next
+        queued job cannot start refilling the printer's input buffer until the
+        current receipt has mostly printed.  ``get_full_status`` keeps returning
+        cached status meanwhile (it short-circuits when the lock is held).
+        """
+        s = self._settings
+        async with self._async_lock:
+            if s.strategy == "chunked":
+                await asyncio.to_thread(
+                    self._sync_raw_write_chunked,
+                    payload,
+                    s.chunk_size,
+                    s.chunk_delay_ms / 1000,
+                )
+            else:
+                await asyncio.to_thread(self._sync_raw_write, payload)
+            self._last_write_error = None
+
+            if s.strategy == "pace":
+                pace_s = (s.pace_base_ms + s.pace_per_line_ms * n_lines) / 1000
+                if pace_s > 0:
+                    await asyncio.sleep(pace_s)
+            elif s.strategy == "status_poll":
+                await asyncio.to_thread(
+                    self._sync_wait_ready,
+                    s.status_poll_timeout_ms / 1000,
+                    s.status_poll_interval_ms / 1000,
+                )
+
+    def _enqueue(self, payload: bytes, n_lines: int = 0) -> None:
+        """Append a write job to the drain queue (never blocks)."""
+        self._job_queue.put_nowait((payload, n_lines))
+
+    # ------------------------------------------------------------------ #
+    # Recovery                                                            #
+    # ------------------------------------------------------------------ #
+
+    def clear_queue(self) -> int:
+        """Discard all pending jobs without printing them.  Returns the count."""
+        queue = self._job_queue
+        cleared = 0
+        while True:
+            try:
+                queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+            queue.task_done()
+            cleared += 1
+        if cleared:
+            logger.warning("[PrinterPool] Cleared %d pending job(s).", cleared)
+        return cleared
+
+    async def reset_printer(self) -> int:
+        """Recover an overflowed printer: flush the queue and clear its buffers.
+
+        Returns the number of pending jobs discarded.
+        """
+        cleared = self.clear_queue()
+        async with self._async_lock:
+            await asyncio.to_thread(self._sync_reset)
+        logger.warning("[PrinterPool] Printer reset (%d job(s) dropped).", cleared)
+        return cleared
+
     async def _background_write(self, payload: bytes) -> None:
-        """Acquire the lock and write.  Errors are logged, not raised."""
+        """Acquire the lock and write a one-off command (no pacing).
+
+        Used by the raster fallback and the cash-drawer path, which are not
+        part of the batched JSON receipt pipeline.  Errors are logged, not
+        raised, so a failed background write never surfaces to the caller.
+        """
         async with self._async_lock:
             try:
                 await asyncio.to_thread(self._sync_raw_write, payload)
@@ -444,11 +664,17 @@ class PrinterPool:
         return _CMD_INIT + d.output
 
     async def print_receipt_json(self, data: PrintReceiptJsonRequest) -> bool:
-        """Encode structured receipt (~5 ms) then fire-and-forget serial write."""
+        """Encode structured receipt (~5 ms) then enqueue it for the drain worker.
+
+        Returns immediately — never blocks Odoo, even if the printer is jammed:
+        the queue absorbs the job and the active strategy paces the worker so a
+        batch cannot overflow the printer's small input buffer.  An overflow is
+        recoverable via ``clear_queue``/``reset_printer``.
+        """
         payload = await asyncio.to_thread(self._encode_json_receipt, data)
-        asyncio.create_task(self._background_write(payload))
+        self._enqueue(payload, len(data.lines))
         if data.open_cashdrawer:
-            asyncio.create_task(self._background_write(_CMD_CASHDRAWER))
+            self._enqueue(_CMD_CASHDRAWER)
         return True
 
     async def default_action(self, action: str, receipt: Optional[str] = None) -> bool:
