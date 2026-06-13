@@ -259,6 +259,7 @@ async def _startup() -> None:
     except Exception as e:
         logger.warning("[Startup] Printer not available at boot: %s", e)
     app.state.printer_pool = pool
+    pool.start_worker()
     asyncio.create_task(_disk_metrics_task())
     asyncio.create_task(_printer_status_task(pool))
     asyncio.create_task(_ups_metrics_task())
