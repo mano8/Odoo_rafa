@@ -175,6 +175,185 @@
       "title": "Print Error Rate",
       "type": "timeseries",
       "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "rate(hw_proxy_print_jobs_total{result=\"error\"}[1m])", "legendFormat": "{{action}}", "refId": "A" }]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 },
+      "id": 30,
+      "title": "Print Pipeline (queue / overflow)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" } },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 32 },
+      "id": 31,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "title": "Print Queue Depth (jobs_queued)",
+      "description": "Jobs waiting in the hw_proxy drain queue. Stays low when pacing keeps up; a growing queue means the printer is the bottleneck.",
+      "type": "timeseries",
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hw_proxy_print_queue_depth", "legendFormat": "hw_proxy queue", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "emulated_printer_jobs_queued", "legendFormat": "emulator jobs_queued", "refId": "B" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }, "unit": "short" } },
+      "gridPos": { "h": 8, "w": 4, "x": 8, "y": 32 },
+      "id": 32,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Jobs Printed (session)",
+      "description": "Receipts the drain worker has written over the selected time range.",
+      "type": "stat",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "increase(hw_proxy_print_jobs_total{result=\"printed\"}[$__range])", "legendFormat": "printed", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "bytes" } },
+      "gridPos": { "h": 8, "w": 4, "x": 12, "y": 32 },
+      "id": 33,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Printer Buffer Size",
+      "description": "Configured input-buffer size. hw_proxy reports the device profile value; the emulator reports its live ground-truth value.",
+      "type": "stat",
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hw_proxy_printer_buffer_size_bytes", "legendFormat": "hw_proxy", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "emulated_printer_buffer_size_bytes", "legendFormat": "emulator", "refId": "B" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }, "unit": "short" } },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 32 },
+      "id": 34,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Overflow / Lost (session)",
+      "description": "hw_proxy: jobs it lost (cleared/reset or write error) — 0 = healthy. emulator: true firmware overflow events. Range = printing session.",
+      "type": "stat",
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "increase(hw_proxy_print_overflow_events_total[$__range])", "legendFormat": "hw_proxy lost {{cause}}", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "increase(emulated_printer_overflow_events[$__range])", "legendFormat": "emulator overflow_events", "refId": "B" }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 40 },
+      "id": 40,
+      "title": "Emulator (ground truth)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "bytes" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 41 },
+      "id": 41,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "title": "Buffer Occupancy vs Size",
+      "description": "Bytes pending in the emulator buffer against its capacity. Pacing keeps occupancy well below buffer_size; an unpaced burst pushes it to the ceiling and overflows.",
+      "type": "timeseries",
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "emulated_printer_pending_bytes", "legendFormat": "pending", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "emulated_printer_buffer_size_bytes", "legendFormat": "buffer_size", "refId": "B" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 41 },
+      "id": 42,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "title": "Overflow Events & Bytes (cumulative)",
+      "description": "Emulator ground-truth overflow counters. Flat = no drops; any rise reproduces the receipt-drop cliff.",
+      "type": "timeseries",
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "emulated_printer_overflow_events", "legendFormat": "overflow_events", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "emulated_printer_overflow_bytes", "legendFormat": "overflow_bytes", "refId": "B" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 49 },
+      "id": 43,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "title": "Jobs Printed / Queued",
+      "type": "timeseries",
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "emulated_printer_jobs_printed", "legendFormat": "jobs_printed", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "emulated_printer_jobs_queued", "legendFormat": "jobs_queued", "refId": "B" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "bytes" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 49 },
+      "id": 44,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "title": "Bytes Received / Printed (cumulative)",
+      "type": "timeseries",
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "emulated_printer_bytes_received", "legendFormat": "received", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "emulated_printer_bytes_printed", "legendFormat": "printed", "refId": "B" }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 57 },
+      "id": 50,
+      "title": "Printer Tuning (active config)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "mappings": [{ "options": { "1": { "text": "ACTIVE", "color": "green" } }, "type": "value" }],
+          "displayName": "${__field.labels.strategy}",
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 58 },
+      "id": 51,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Active Strategy",
+      "description": "Flow-control strategy currently selected in the Printer Tuning card.",
+      "type": "stat",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hw_proxy_print_strategy_active == 1", "legendFormat": "{{strategy}}", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "text" }, "displayName": "${__field.labels.setting}", "unit": "short" } },
+      "gridPos": { "h": 6, "w": 18, "x": 6, "y": 58 },
+      "id": 52,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Tuning Parameters (pace / chunk / status_poll)",
+      "description": "Live values from PrintSettings. *_ms in milliseconds; chunk_size in bytes. Only the active strategy's parameters take effect.",
+      "type": "stat",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hw_proxy_print_setting", "legendFormat": "{{setting}}", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "fillOpacity": 30, "lineWidth": 2, "spanNulls": true, "showPoints": "never" }, "min": 0, "max": 1, "unit": "short" } },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 64 },
+      "id": 53,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "title": "Active Strategy Over Time",
+      "description": "Step plot of which flow-control strategy was live (1) vs inactive (0). Use it to line strategy switches up with overflow / throughput during an A/B sweep.",
+      "type": "timeseries",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hw_proxy_print_strategy_active", "legendFormat": "{{strategy}}", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "fillOpacity": 10, "lineWidth": 2, "spanNulls": true, "showPoints": "never" }, "unit": "short" } },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 64 },
+      "id": 54,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "title": "Tuning Parameters Over Time",
+      "description": "Step plot of each PrintSettings parameter (*_ms in ms, chunk_size in bytes) so changes made from the Printer Tuning card are visible over time.",
+      "type": "timeseries",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "hw_proxy_print_setting", "legendFormat": "{{setting}}", "refId": "A" }]
     }
   ],
   "refresh": "10s",
@@ -185,5 +364,5 @@
   "timezone": "browser",
   "title": "hw_proxy — Printer & POS",
   "uid": "hw-proxy-pos",
-  "version": 1
+  "version": 4
 }
