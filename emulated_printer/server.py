@@ -53,6 +53,10 @@ def build_emulator(profile: dict) -> PrinterEmulator:
 async def _run(args: argparse.Namespace) -> None:
     emulator = build_emulator(load_profile(args.config))
     logger.info("[emulated_printer] profile=%s", emulator.status())
+    if args.metrics_port:
+        from emulator.metrics_server import start_metrics_server
+
+        start_metrics_server(emulator, args.metrics_port)
     if args.transport == "tcp":
         from emulator.tcp_server import TcpPrinterServer
 
@@ -73,6 +77,12 @@ def _parse_args() -> argparse.Namespace:
     )
     p.add_argument("--host", default=os.environ.get("BIND_HOST", "0.0.0.0"))
     p.add_argument("--port", type=int, default=int(os.environ.get("BIND_PORT", "9100")))
+    p.add_argument(
+        "--metrics-port",
+        type=int,
+        default=int(os.environ.get("METRICS_PORT", "9101")),
+        help="Prometheus metrics port; 0 disables the metrics endpoint.",
+    )
     p.add_argument("--pty", default=os.environ.get("PTY_DEVICE", "/tmp/printer0"))
     p.add_argument(
         "--baudrate", type=int, default=int(os.environ.get("BAUDRATE", "115200"))

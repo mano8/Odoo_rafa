@@ -23,9 +23,11 @@ services:
       TRANSPORT: tcp
       BIND_HOST: 0.0.0.0
       BIND_PORT: "9100"
+      METRICS_PORT: "9101"
       LOG_LEVEL: INFO
     ports:
       - "9100:9100"
+      - "9101:9101"
     restart: unless-stopped
     networks:
       - odoo_network

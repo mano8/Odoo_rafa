@@ -20,7 +20,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 RUN chmod +x run_local.sh
 
-EXPOSE 9100
+EXPOSE 9100 9101
 
 CMD ["python", "server.py", "--config", "config/pp6800.yml", \
-     "--transport", "tcp", "--host", "0.0.0.0", "--port", "9100"]
+     "--transport", "tcp", "--host", "0.0.0.0", "--port", "9100", \
+     "--metrics-port", "9101"]
