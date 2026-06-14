@@ -200,6 +200,8 @@ docker-compose/odoo_addon/.env
 docker-compose/hardened_odoo_prod/.env
 docker-compose/hardened_odoo_prod/auth.env
 docker-compose/hardened_odoo_prod/backup_restore.env
+# Emulator stack real env files (keep the *.env.example templates tracked)
+emulated_printer/*.env
 docker-compose/*/traefik/certs/*.key
 docker/certs/*.pem
 docker/certs/*.key
