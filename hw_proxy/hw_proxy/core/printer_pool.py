@@ -27,7 +27,7 @@ import asyncio
 import logging
 import time
 import warnings
-from typing import Optional, get_args
+from typing import Callable, Optional, get_args
 
 from escpos.printer import Dummy
 from PIL import Image, ImageOps
@@ -103,6 +103,9 @@ class PrinterPool:
         self._settings = settings or PrintSettings()
         self._queue: Optional[asyncio.Queue] = None
         self._worker_task: Optional[asyncio.Task] = None
+        # Set while a reset is pending so the in-flight job's pacing step aborts
+        # early instead of holding the lock for the full pace/poll duration.
+        self._reset_event: Optional[asyncio.Event] = None
 
     # ------------------------------------------------------------------ #
     # Lock / queue — created lazily inside the running event loop          #
@@ -119,6 +122,12 @@ class PrinterPool:
         if self._queue is None:
             self._queue = asyncio.Queue()
         return self._queue
+
+    @property
+    def _reset_signal(self) -> asyncio.Event:
+        if self._reset_event is None:
+            self._reset_event = asyncio.Event()
+        return self._reset_event
 
     # ------------------------------------------------------------------ #
     # Runtime settings                                                     #
@@ -343,15 +352,27 @@ class PrinterPool:
                         f"[PrinterPool] Chunked write failed: {e}"
                     ) from e
 
-    def _sync_wait_ready(self, timeout_s: float, interval_s: float) -> bool:
+    def _sync_wait_ready(
+        self,
+        timeout_s: float,
+        interval_s: float,
+        should_abort: Optional[Callable[[], bool]] = None,
+    ) -> bool:
         """Poll the printer's in-band online status until ready or timeout.
 
         Uses ``is_online()`` (DLE EOT real-time status) rather than the DSR
         modem line so it works over both serial and network transports.
         Returns True once the printer reports ready, False on timeout.
+
+        ``should_abort`` is polled each iteration; when it returns True the wait
+        bails out immediately so a pending reset never blocks for the full
+        ``status_poll`` timeout.  Reading an ``asyncio.Event``'s flag from this
+        worker thread is safe (it is a plain bool read, no loop interaction).
         """
         deadline = time.perf_counter() + timeout_s
         while True:
+            if should_abort is not None and should_abort():
+                return False
             try:
                 h = self._ensure()
                 if h.printer.is_online():
@@ -465,9 +486,7 @@ class PrinterPool:
                 self._last_write_error = str(e)
                 print_jobs_total.labels(action="receipt", result="error").inc()
                 print_overflow_events_total.labels(cause="write_error").inc()
-                print_overflow_bytes_total.labels(cause="write_error").inc(
-                    len(payload)
-                )
+                print_overflow_bytes_total.labels(cause="write_error").inc(len(payload))
                 logger.error("[PrinterPool] Drain worker write error: %s", e)
             finally:
                 queue.task_done()
@@ -479,6 +498,11 @@ class PrinterPool:
         queued job cannot start refilling the printer's input buffer until the
         current receipt has mostly printed.  ``get_full_status`` keeps returning
         cached status meanwhile (it short-circuits when the lock is held).
+
+        Only the pacing *delay* is interruptible: a pending ``reset_printer``
+        sets ``_reset_signal`` so this step ends early and releases the lock,
+        making reset near-instant.  The serial write itself runs in a thread and
+        always completes — those bytes are already on the wire.
         """
         s = self._settings
         async with self._async_lock:
@@ -496,13 +520,26 @@ class PrinterPool:
             if s.strategy == "pace":
                 pace_s = (s.pace_base_ms + s.pace_per_line_ms * n_lines) / 1000
                 if pace_s > 0:
-                    await asyncio.sleep(pace_s)
+                    await self._interruptible_sleep(pace_s)
             elif s.strategy == "status_poll":
                 await asyncio.to_thread(
                     self._sync_wait_ready,
                     s.status_poll_timeout_ms / 1000,
                     s.status_poll_interval_ms / 1000,
+                    self._reset_signal.is_set,
                 )
+
+    async def _interruptible_sleep(self, seconds: float) -> None:
+        """Sleep ``seconds`` but return early if a reset has been requested.
+
+        Waits on ``_reset_signal`` with a timeout so the pace delay is abandoned
+        the moment ``reset_printer`` sets the flag, instead of holding the lock
+        for the full estimated print time.
+        """
+        try:
+            await asyncio.wait_for(self._reset_signal.wait(), timeout=seconds)
+        except asyncio.TimeoutError:
+            pass
 
     def _enqueue(self, payload: bytes, n_lines: int = 0) -> None:
         """Append a write job to the drain queue (never blocks)."""
@@ -536,11 +573,17 @@ class PrinterPool:
     async def reset_printer(self) -> int:
         """Recover an overflowed printer: flush the queue and clear its buffers.
 
-        Returns the number of pending jobs discarded.
+        Discards every pending job, then signals the in-flight job to abandon its
+        pacing delay so the lock is released promptly, and finally clears the
+        printer's buffers.  Returns the number of pending jobs discarded.
         """
         cleared = self.clear_queue()
-        async with self._async_lock:
-            await asyncio.to_thread(self._sync_reset)
+        self._reset_signal.set()
+        try:
+            async with self._async_lock:
+                await asyncio.to_thread(self._sync_reset)
+        finally:
+            self._reset_signal.clear()
         logger.warning("[PrinterPool] Printer reset (%d job(s) dropped).", cleared)
         return cleared
 
@@ -651,7 +694,9 @@ class PrinterPool:
             if bp <= 0:
                 bp = last_w
             rest = piece[bp:].lstrip()
-            chunks[pi : pi + 1] = [piece[:bp].rstrip(), rest] if rest else [piece[:bp].rstrip()]
+            chunks[pi : pi + 1] = (
+                [piece[:bp].rstrip(), rest] if rest else [piece[:bp].rstrip()]
+            )
 
         # Build output: label only on all lines except pi, which gets the price.
         result: list[str] = []

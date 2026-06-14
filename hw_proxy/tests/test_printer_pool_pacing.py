@@ -13,6 +13,7 @@ and is unavailable offline in the test env, so it is stubbed in ``sys.modules``
 before importing the module under test.
 """
 
+import asyncio
 import sys
 import types
 from time import perf_counter
@@ -258,6 +259,36 @@ async def test_reset_printer_clears_and_recovers(monkeypatch) -> None:
     assert cleared == 3
     assert pool._job_queue.qsize() == 0
     assert reset_calls == [True]
+
+
+@pytest.mark.anyio
+async def test_reset_aborts_in_flight_pace(monkeypatch) -> None:
+    """reset_printer must not wait out the in-flight job's full pace delay.
+
+    The worker holds the lock through the write and the pace sleep.  Without the
+    interrupt, reset would block ~10 s behind the pace; the reset signal must
+    abandon the sleep so reset returns near-instantly.
+    """
+    pool = _make_pool()
+    pool.update_settings(strategy="pace", pace_base_ms=10_000, pace_per_line_ms=0)
+    written = asyncio.Event()
+    monkeypatch.setattr(pool, "_sync_raw_write", lambda payload: written.set())
+    monkeypatch.setattr(pool, "_sync_reset", lambda: None)
+
+    pool.start_worker()
+    pool._enqueue(b"x", 0)
+    # Wait until the worker has written the job and entered the 10 s pace,
+    # holding the lock.
+    await asyncio.wait_for(written.wait(), timeout=1.0)
+
+    t0 = perf_counter()
+    # If the pace were not interruptible this would block for ~10 s and the
+    # wait_for would time out, failing the test.
+    cleared = await asyncio.wait_for(pool.reset_printer(), timeout=3.0)
+    assert perf_counter() - t0 < 2.0
+    assert cleared == 0  # the only job was already in flight, not pending
+    # The signal is cleared again so later jobs pace normally.
+    assert pool._reset_signal.is_set() is False
 
 
 def test_sync_reset_sequence(monkeypatch) -> None:
