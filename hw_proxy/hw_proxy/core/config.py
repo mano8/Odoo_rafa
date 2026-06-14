@@ -22,6 +22,7 @@ from pydantic import (
 from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
 from hw_proxy.tools.paths import find_dotenv
+from hw_proxy.schemas.printer import PrintSettings, PrintStrategy
 from hw_proxy.schemas.shared import ValidationConstants
 # pylint: disable=invalid-name, import-outside-toplevel
 
@@ -171,6 +172,19 @@ class Settings(BaseSettings):
 
     LOG_LEVEL: str = "Warning"
     VSCODE_DEBUG: bool = False
+
+    # -------------------
+    # Printer Tuning (defaults for the runtime-tunable print pipeline)
+    # -------------------
+    # Initial values for PrinterPool's live PrintSettings; still changeable at
+    # runtime from the hw_status UI. Ranges are enforced by PrintSettings.
+    PRINT_STRATEGY: PrintStrategy = "pace"
+    PRINT_PACE_BASE_MS: int = 800
+    PRINT_PACE_PER_LINE_MS: int = 30
+    PRINT_CHUNK_SIZE: int = 256
+    PRINT_CHUNK_DELAY_MS: int = 20
+    PRINT_STATUS_POLL_TIMEOUT_MS: int = 5_000
+    PRINT_STATUS_POLL_INTERVAL_MS: int = 100
     # BACKEND_CORS_ORIGINS should be provided
     # as a comma-separated string in the env file.
     BACKEND_CORS_ORIGINS: str
@@ -202,6 +216,23 @@ class Settings(BaseSettings):
         if frontend not in origins:
             origins.append(frontend)
         return origins
+
+    @property
+    def print_settings(self) -> PrintSettings:
+        """Build the initial print-pipeline settings from the env defaults.
+
+        Range validation is delegated to :class:`PrintSettings`, so an
+        out-of-range env value surfaces as a clear startup error.
+        """
+        return PrintSettings(
+            strategy=self.PRINT_STRATEGY,
+            pace_base_ms=self.PRINT_PACE_BASE_MS,
+            pace_per_line_ms=self.PRINT_PACE_PER_LINE_MS,
+            chunk_size=self.PRINT_CHUNK_SIZE,
+            chunk_delay_ms=self.PRINT_CHUNK_DELAY_MS,
+            status_poll_timeout_ms=self.PRINT_STATUS_POLL_TIMEOUT_MS,
+            status_poll_interval_ms=self.PRINT_STATUS_POLL_INTERVAL_MS,
+        )
 
     @model_validator(mode="after")
     def validate_sensitive_fields(self) -> "Settings":

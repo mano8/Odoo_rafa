@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: hw_proxy
+    static_configs:
+      - targets: ["hw_proxy_service:9002"]
+    metrics_path: /hw_proxy/metrics
+
+  # Emulator ground-truth counters (true overflow / buffer occupancy) — dev only;
+  # there is no emulator on the real-printer (prod) stack.
+  - job_name: emulated_printer
+    static_configs:
+      - targets: ["emulated_printer:9101"]
+    metrics_path: /metrics

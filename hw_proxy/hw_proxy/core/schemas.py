@@ -57,6 +57,9 @@ class DeviceConfigSchemas(BaseModel):
     conf: Union[UsbDeviceSchemas, NetworkDeviceSchemas, SerialDeviceSchemas]
     image_conf: Optional[PrinteImageConfSchemas] = None
     print_width: Optional[int] = None
+    # Printer input-buffer size in bytes (for the overflow/buffer dashboard
+    # gauge).  Approximate; None when unknown.
+    buffer_size: Optional[int] = None
 
 
 class PrintRequest(BaseModel):

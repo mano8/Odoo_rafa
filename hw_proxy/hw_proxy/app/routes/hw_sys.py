@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from hw_proxy.core.deps import get_printer_pool
 from hw_proxy.core.printer_pool import PrinterPool
 from hw_proxy.schemas.hw_sys import JournalQuery
+from hw_proxy.schemas.printer import PrintSettings
 from hw_proxy.schemas.receipt import PrintReceiptJsonRequest, ReceiptLine
 from hw_proxy.tools.utils import HwUtils
 
@@ -167,6 +168,86 @@ async def open_cashdrawer(pool: PrinterPool = Depends(get_printer_pool)):
     try:
         await pool.open_cashdrawer()
         return JSONResponse({"success": True})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# ---------------------------------------------------------------------------
+# Printer pipeline tuning & recovery (driven by the hw_status UI)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/print_settings")
+async def get_print_settings(
+    pool: PrinterPool = Depends(get_printer_pool),
+) -> PrintSettings:
+    """Return the live print-pipeline settings."""
+    return pool.get_settings()
+
+
+@router.post("/print_settings")
+async def set_print_settings(
+    settings: PrintSettings,
+    pool: PrinterPool = Depends(get_printer_pool),
+) -> PrintSettings:
+    """Apply new print-pipeline settings and return the live values."""
+    try:
+        return pool.update_settings(**settings.model_dump())
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
+@router.post("/clear_print_queue")
+async def clear_print_queue(pool: PrinterPool = Depends(get_printer_pool)):
+    """Discard all pending print jobs without printing them."""
+    try:
+        return JSONResponse({"cleared": pool.clear_queue()})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/reset_printer")
+async def reset_printer(pool: PrinterPool = Depends(get_printer_pool)):
+    """Recover an overflowed printer: flush the queue and clear its buffers."""
+    try:
+        cleared = await pool.reset_printer()
+        return JSONResponse({"success": True, "cleared": cleared})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/print_test_batch")
+async def print_test_batch(
+    count: int = Query(5, ge=1, le=100, description="Number of receipts to enqueue"),
+    lines: int = Query(6, ge=1, le=50, description="Body lines per receipt"),
+    pool: PrinterPool = Depends(get_printer_pool),
+):
+    """Enqueue ``count`` numbered synthetic receipts to exercise the pipeline.
+
+    Lets the whole queue/strategy/recovery path be driven from the UI or
+    Swagger with no Odoo in the loop.
+    """
+    try:
+        for i in range(1, count + 1):
+            receipt_lines = [
+                ReceiptLine(
+                    t="text", v=f"*** TEST {i}/{count} ***", c="center", b=True
+                ),
+                ReceiptLine(t="div"),
+            ]
+            for j in range(1, lines + 1):
+                receipt_lines.append(
+                    ReceiptLine(t="row", l=f"line {j}", r=f"{i}.{j}")
+                )
+            receipt_lines.append(ReceiptLine(t="div"))
+            req = PrintReceiptJsonRequest(
+                lines=receipt_lines,
+                char_size=1,
+                cut=True,
+                open_cashdrawer=False,
+            )
+            await pool.print_receipt_json(req)
+        return JSONResponse({"queued": count})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

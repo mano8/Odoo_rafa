@@ -155,3 +155,69 @@ msgstr "Cantidad"
 #: code:addons/pos_indv_receipt/static/src/overrides/components/models/product_selection_popup.js:0
 msgid "Unit Price"
 msgstr "Precio Unitario"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/pos_order.js:0
+msgid "Price (excl. VAT)"
+msgstr "Precio (sin IVA)"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/pos_order.js:0
+msgid "VAT"
+msgstr "IVA"
+
+#. module: pos_indv_receipt
+#. odoo-javascript
+#: code:addons/pos_indv_receipt/static/src/overrides/components/models/pos_order.js:0
+msgid "Total (VAT incl.)"
+msgstr "Total (IVA incl.)"
+
+#. module: pos_indv_receipt
+#: model:ir.model.fields,field_description:pos_indv_receipt.field_pos_config__indv_receipt_unit_price_no_vat
+#: model:ir.model.fields,field_description:pos_indv_receipt.field_res_config_settings__pos_indv_receipt_unit_price_no_vat
+msgid "Individual Ticket: Unit Price (excl. VAT)"
+msgstr "Ticket Individual: Precio Unitario (sin IVA)"
+
+#. module: pos_indv_receipt
+#: model:ir.model.fields,field_description:pos_indv_receipt.field_pos_config__indv_receipt_unit_price_with_vat
+#: model:ir.model.fields,field_description:pos_indv_receipt.field_res_config_settings__pos_indv_receipt_unit_price_with_vat
+msgid "Individual Ticket: Unit Price (VAT incl.)"
+msgstr "Ticket Individual: Precio Unitario (IVA incl.)"
+
+#. module: pos_indv_receipt
+#: model:ir.model.fields,help:pos_indv_receipt.field_pos_config__indv_receipt_unit_price_no_vat
+#: model:ir.model.fields,help:pos_indv_receipt.field_res_config_settings__pos_indv_receipt_unit_price_no_vat
+msgid "Show the unit price without VAT in the right column of each individual product ticket."
+msgstr "Mostrar el precio unitario sin IVA en la columna derecha de cada ticket individual de producto."
+
+#. module: pos_indv_receipt
+#: model:ir.model.fields,help:pos_indv_receipt.field_pos_config__indv_receipt_unit_price_with_vat
+#: model:ir.model.fields,help:pos_indv_receipt.field_res_config_settings__pos_indv_receipt_unit_price_with_vat
+msgid "Show the unit price without VAT plus a VAT line and the total price with VAT included on each individual product ticket."
+msgstr "Mostrar el precio unitario sin IVA más una línea de IVA y el precio total con IVA incluido en cada ticket individual de producto."
+
+#. module: pos_indv_receipt
+#: model_terms:ir.ui.view,arch_db:pos_indv_receipt.pos_config_form_view_inherit_indv_receipt
+#: model_terms:ir.ui.view,arch_db:pos_indv_receipt.res_config_settings_view_form_inherit_indv_receipt
+msgid "Individual Tickets"
+msgstr "Tickets Individuales"
+
+#. module: pos_indv_receipt
+#: model_terms:ir.ui.view,arch_db:pos_indv_receipt.pos_config_form_view_inherit_indv_receipt
+#: model_terms:ir.ui.view,arch_db:pos_indv_receipt.res_config_settings_view_form_inherit_indv_receipt
+msgid "Choose what price information is printed on each individual product ticket"
+msgstr "Elija qué información de precio se imprime en cada ticket individual de producto"
+
+#. module: pos_indv_receipt
+#: model_terms:ir.ui.view,arch_db:pos_indv_receipt.pos_config_form_view_inherit_indv_receipt
+#: model_terms:ir.ui.view,arch_db:pos_indv_receipt.res_config_settings_view_form_inherit_indv_receipt
+msgid "Unit Price (excl. VAT)"
+msgstr "Precio Unitario (sin IVA)"
+
+#. module: pos_indv_receipt
+#: model_terms:ir.ui.view,arch_db:pos_indv_receipt.pos_config_form_view_inherit_indv_receipt
+#: model_terms:ir.ui.view,arch_db:pos_indv_receipt.res_config_settings_view_form_inherit_indv_receipt
+msgid "Unit Price (VAT incl.)"
+msgstr "Precio Unitario (IVA incl.)"

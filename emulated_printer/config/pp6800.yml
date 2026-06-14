@@ -1,0 +1,31 @@
+# Posiflex PP6800 emulator profile.
+#
+# Every characteristic of the modelled printer is tunable here.  The defaults
+# approximate the PP6800: a small input buffer that the print head drains at the
+# 115 200-baud line speed.  Tune `buffer_size` (and/or `max_queued_jobs`) until
+# the emulator reproduces the observed "6 receipts ok, 7 breaks" cliff with an
+# unpaced batch — that calibrates the overflow model and proves the diagnosis.
+
+# Input-buffer capacity in bytes.  ~12 KiB ≈ six small JSON receipts (~2 KB each);
+# the seventh overflows it, matching the field-observed cliff.
+buffer_size: 12288
+
+# Print-head speed in bytes/second.  11 520 ≈ 115 200 baud / 10 bits per byte —
+# the hardware floor that paced the old raster path for free.
+drain_rate_bps: 11520
+
+# Optional cap on cut-delimited jobs held in the buffer at once.  null disables
+# the job-count limit and relies on `buffer_size` alone.  Set to 6 to model the
+# cliff as a job count instead of a byte count.
+max_queued_jobs: null
+
+# What the printer does when the buffer overflows:
+#   drop       — silently discard the excess bytes (PP6800 behaviour)
+#   truncate   — same as drop (kept for clarity in logs)
+#   garble     — accept but corrupt the excess
+#   go_offline — stop accepting and report offline until reset
+overflow_behavior: drop
+
+# Initial paper / power state: ok | near_end | no_paper, and online true/false.
+paper_status: ok
+online: true

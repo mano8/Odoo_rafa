@@ -1,0 +1,52 @@
+# Serial-fidelity variant: emulator + hw_proxy combined in one container
+# (shared PTY), plus hw_status.  Run from the repo root context.
+#   docker compose -f emulated_printer/docker-compose.serial.yml up --build
+services:
+  hw_proxy_serial:
+    build:
+      context: ..
+      dockerfile: emulated_printer/Dockerfile.serial
+    env_file:
+      - ./hw_proxy.env
+    environment:
+      ENVIRONMENT: development
+      SET_OPEN_API: "true"
+      SET_DOCS: "true"
+      SET_REDOC: "true"
+      # Serial transport: hw_proxy opens the socat PTY as the PP6800 device.
+      PRINTER_KEY: "PP6800"
+      VSCODE_DEBUG: "false"
+    ports:
+      - "9002:9002"
+    restart: unless-stopped
+    networks:
+      - emulator_network
+
+  hw_status_service:
+    build:
+      context: ../hw_status
+      dockerfile: ./hw_status/Dockerfile.offline.dev
+    env_file:
+      - ./hw_status.env
+    environment:
+      ENVIRONMENT: development
+      SET_OPEN_API: "true"
+      SET_DOCS: "true"
+      SET_REDOC: "true"
+      PRINTER_KEY: "PP6800"
+      VSCODE_DEBUG: "false"
+    volumes:
+      - ../hw_status/hw_status:/opt/hw_status
+      - ./hw_status.env:/opt/hw_status/.env:ro
+    userns_mode: "host"
+    ports:
+      - "8015:8015"
+    depends_on:
+      - hw_proxy_serial
+    restart: unless-stopped
+    networks:
+      - emulator_network
+
+networks:
+  emulator_network:
+    driver: bridge

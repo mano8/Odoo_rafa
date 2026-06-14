@@ -32,6 +32,46 @@ serial_write_duration_seconds = Histogram(
     buckets=[0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 7.0, 10.0],
 )
 
+# --- Print pipeline (queue + drain worker; real and emulated printers alike) ---
+# jobs_printed / errors reuse print_jobs_total (action="receipt"), populated by
+# the drain worker so they count every job regardless of source (Odoo, test
+# batch, individual ticket) — not just the Odoo HTTP route.
+print_queue_depth = Gauge(
+    "hw_proxy_print_queue_depth",
+    "Print jobs currently waiting in the drain queue (jobs_queued).",
+)
+print_overflow_events_total = Counter(
+    "hw_proxy_print_overflow_events_total",
+    "Print jobs lost — dropped via clear-queue/reset, or failed at write. "
+    "The real printer cannot report a firmware buffer overflow, so this counts "
+    "the losses hw_proxy can observe; with pacing it stays 0 (healthy).",
+    ["cause"],
+)
+print_overflow_bytes_total = Counter(
+    "hw_proxy_print_overflow_bytes_total",
+    "Bytes of print payload lost (dropped via clear-queue/reset or write error).",
+    ["cause"],
+)
+printer_buffer_size_bytes = Gauge(
+    "hw_proxy_printer_buffer_size_bytes",
+    "Configured input-buffer size of the active printer in bytes (0 if unknown).",
+)
+
+# --- Printer Tuning configuration (mirrors PrintSettings; refreshed on change) ---
+# Lets the dashboard show which strategy/parameters were live during a session,
+# so overflow/throughput can be correlated with the tuning in effect.
+print_strategy_active = Gauge(
+    "hw_proxy_print_strategy_active",
+    "Active flow-control strategy: 1 for the selected strategy, 0 for the others.",
+    ["strategy"],
+)
+print_setting = Gauge(
+    "hw_proxy_print_setting",
+    "Live print-pipeline tuning parameter value (per 'setting' label; *_ms are "
+    "milliseconds, chunk_size is bytes).",
+    ["setting"],
+)
+
 # --- Hardware gauges (refreshed on each status poll) ---
 printer_online = Gauge(
     "hw_proxy_printer_online",

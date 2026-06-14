@@ -330,6 +330,17 @@ SECRET_KEY="changethis"
 PRINTER_KEY="PP6800"
 
 LOG_LEVEL="Debug"
+
+# Printer Tuning — initial defaults for the runtime-tunable print pipeline.
+# Still changeable at runtime from the hw_status UI (POST /system/print_settings).
+# strategy: pace | chunked | status_poll
+PRINT_STRATEGY="pace"
+PRINT_PACE_BASE_MS=800
+PRINT_PACE_PER_LINE_MS=30
+PRINT_CHUNK_SIZE=256
+PRINT_CHUNK_DELAY_MS=20
+PRINT_STATUS_POLL_TIMEOUT_MS=5000
+PRINT_STATUS_POLL_INTERVAL_MS=100
 ```
 
 **Check these values carefully:**
@@ -338,6 +349,9 @@ LOG_LEVEL="Debug"
 * `DOMAIN`, `BACKEND_HOST`, `FRONTEND_HOST` → your actual IP or hostname.
 * `STATIC_BASE_PATH` / `TEMPLATES_BASE_PATH` → correct for your deployment path.
 * `SECRET_KEY` → replace `"changethis"`.
+* `PRINT_*` → seed the print-pacing defaults; tune live from the hw_status
+  "Printer Tuning" card, or set the startup default here (`pace` is the
+  verified safe default for the PP6800).
 
 ---
 

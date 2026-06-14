@@ -1,0 +1,194 @@
+# Full debug stack — Odoo + hw_proxy + hw_status + the ESC/POS emulator + monitoring.
+#
+# Mirror of ../odoo_dev_offline, with the only difference being the printer
+# transport: instead of mapping the real /dev/ttyACM0 serial device, hw_proxy
+# talks to the controllable `emulated_printer` over TCP (PRINTER_KEY=EMULATED).
+# This makes the whole pipeline — Odoo individual-ticket batches, the print
+# queue/strategies, and the reset recovery — reproducible with no hardware.
+#
+# This stack is self-contained: prometheus, grafana, and the odoo addons/config
+# are local copies (mirrored from odoo_dev_offline). Its mutable state (postgres
+# pgdata, odoo data) is local too, so running it never touches the real-printer
+# stack's database.
+#
+# Ports collide with odoo_dev_offline and the plain emulated_printer stack, so run
+# only one of them at a time.
+services:
+  emulated_printer:
+    build:
+      context: ../../emulated_printer
+      dockerfile: Dockerfile
+    environment:
+      PROFILE: config/pp6800.yml
+      TRANSPORT: tcp
+      BIND_HOST: 0.0.0.0
+      BIND_PORT: "9100"
+      METRICS_PORT: "9101"
+      LOG_LEVEL: INFO
+    ports:
+      - "9100:9100"
+      - "9101:9101"
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+  fiesta_db:
+    image: postgres:13.21-alpine3.20
+    shm_size: 128mb
+    volumes:
+      - ./postgres/pgdata:/var/lib/postgresql/data/pgdata
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    logging:
+      driver: "json-file"
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+  hw_proxy_service:
+    build:
+      context: ../../hw_proxy
+      dockerfile: ./hw_proxy/Dockerfile.offline.dev
+    env_file:
+      - ./hw_proxy.env
+    environment:
+      ENVIRONMENT: development
+      SET_OPEN_API: "true"
+      SET_DOCS: "true"
+      SET_REDOC: "true"
+      PRINTER_KEY: "EMULATED"
+      EMULATED_PRINTER_HOST: "emulated_printer"
+      EMULATED_PRINTER_PORT: "9100"
+      VSCODE_DEBUG: "false"
+    # No serial device / privileged mode: the printer is the TCP emulator, so the
+    # default Dockerfile CMD (which chmods /dev/ttyACM0) is replaced by a plain
+    # uvicorn launch.
+    command: >
+      bash -c 'exec uvicorn hw_proxy.main:app --host 0.0.0.0 --port 9002
+      --reload --proxy-headers --forwarded-allow-ips "*"'
+    volumes:
+      - ../../hw_proxy/hw_proxy:/opt/hw_proxy
+      - ./hw_proxy.env:/opt/hw_proxy/.env:ro
+    ports:
+      - "9002:9002"
+      - "5679:5679"
+    depends_on:
+      - emulated_printer
+    logging:
+      driver: "json-file"
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+  hw_status_service:
+    build:
+      context: ../../hw_status
+      dockerfile: ./hw_status/Dockerfile.offline.dev
+    env_file:
+      - ./hw_status.env
+    environment:
+      ENVIRONMENT: development
+      SET_OPEN_API: "true"
+      SET_DOCS: "true"
+      SET_REDOC: "true"
+      PRINTER_KEY: "EMULATED"
+      VSCODE_DEBUG: "false"
+    volumes:
+      - ../../hw_status/hw_status:/opt/hw_status
+      - ./hw_status.env:/opt/hw_status/.env:ro
+    userns_mode: "host"
+    ports:
+      - "8015:8015"
+      - "5678:5678"
+    depends_on:
+      - hw_proxy_service
+    logging:
+      driver: "json-file"
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+  fiesta_odoo:
+    image: odoo:18.0
+    volumes:
+      - ./odoo/data:/var/lib/odoo:rw
+      - ./odoo/config:/etc/odoo:rw
+      - ./odoo/addons:/mnt/extra-addons:ro
+    ports:
+      - "9000:8069"
+    extra_hosts:
+      - "fonts.odoo.com:${HOST_IP:-192.168.1.146}"
+    command: >
+      bash -c '
+        export PGPASSWORD="$DB_PASSWORD"
+        if psql -h fiesta_db -U "$DB_USER" -d "$DB_DATABASE" -tAc "SELECT 1 FROM res_users LIMIT 1;" 2>/dev/null | grep -q 1; then
+          echo "Database exists, starting normally...";
+          exec odoo --dev=reload --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD" -u pos_indv_receipt,pos_json_printer;
+        else
+          echo "Database missing — initializing...";
+          odoo -i base,pos_indv_receipt,pos_json_printer --without-demo=True --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD" --stop-after-init &&
+          exec odoo --dev=reload --database "$DB_DATABASE" --db_host=fiesta_db --db_user "$DB_USER" --db_password "$DB_PASSWORD";
+        fi
+      '
+    environment:
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    logging:
+      driver: "json-file"
+    depends_on:
+      fiesta_db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+  grafana:
+    image: grafana/grafana:12.0.1
+    volumes:
+      - ./grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/hw_proxy.json
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - odoo_network
+
+networks:
+  odoo_network:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  grafana_data:

@@ -1,0 +1,82 @@
+# Self-contained test stack: emulated printer + hw_proxy + hw_status.
+#
+# No host serial device and no Odoo — the emulator stands in for the PP6800 over
+# TCP, so every print-pacing strategy and the queue/reset recovery can be
+# exercised from the hw_status UI (http://localhost:8015) or hw_proxy Swagger
+# (http://localhost:9002/hw_proxy/docs).  The production odoo_dev_offline stack
+# is left untouched (it keeps the real /dev/ttyACM0 mapping).
+services:
+  emulated_printer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      PROFILE: config/pp6800.yml
+      TRANSPORT: tcp
+      BIND_HOST: 0.0.0.0
+      BIND_PORT: "9100"
+      LOG_LEVEL: INFO
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+    networks:
+      - emulator_network
+
+  hw_proxy_service:
+    build:
+      context: ../hw_proxy
+      dockerfile: ./hw_proxy/Dockerfile.offline.dev
+    env_file:
+      - ./hw_proxy.env
+    environment:
+      ENVIRONMENT: development
+      SET_OPEN_API: "true"
+      SET_DOCS: "true"
+      SET_REDOC: "true"
+      PRINTER_KEY: "EMULATED"
+      EMULATED_PRINTER_HOST: "emulated_printer"
+      EMULATED_PRINTER_PORT: "9100"
+      VSCODE_DEBUG: "false"
+    # No serial device / privileged mode: the printer is the TCP emulator.
+    command: >
+      bash -c 'exec uvicorn hw_proxy.main:app --host 0.0.0.0 --port 9002
+      --reload --proxy-headers --forwarded-allow-ips "*"'
+    volumes:
+      - ../hw_proxy/hw_proxy:/opt/hw_proxy
+      - ./hw_proxy.env:/opt/hw_proxy/.env:ro
+    ports:
+      - "9002:9002"
+    depends_on:
+      - emulated_printer
+    restart: unless-stopped
+    networks:
+      - emulator_network
+
+  hw_status_service:
+    build:
+      context: ../hw_status
+      dockerfile: ./hw_status/Dockerfile.offline.dev
+    env_file:
+      - ./hw_status.env
+    environment:
+      ENVIRONMENT: development
+      SET_OPEN_API: "true"
+      SET_DOCS: "true"
+      SET_REDOC: "true"
+      PRINTER_KEY: "EMULATED"
+      VSCODE_DEBUG: "false"
+    volumes:
+      - ../hw_status/hw_status:/opt/hw_status
+      - ./hw_status.env:/opt/hw_status/.env:ro
+    userns_mode: "host"
+    ports:
+      - "8015:8015"
+    depends_on:
+      - hw_proxy_service
+    restart: unless-stopped
+    networks:
+      - emulator_network
+
+networks:
+  emulator_network:
+    driver: bridge

@@ -5,6 +5,7 @@ import { _t } from "@web/core/l10n/translation";
 import { formatDate, formatDateTime } from "@web/core/l10n/dates";
 import { floatIsZero } from "@web/core/utils/numbers";
 import { omit } from "@web/core/utils/objects";
+import { formatCurrency } from "@point_of_sale/app/models/utils/currency";
 const { DateTime } = luxon;
 
 /**
@@ -84,12 +85,17 @@ patch(PosOrder.prototype, {
         
         const order_lines = this.getSortedOrderlines()
                 .filter((l) => line ? l.id === line.id : false)
-                .map((l) => omit(l.getDisplayData(), "internalNote"))
                 .map((l) => {
+                    // Each individual ticket represents a single unit, so the
+                    // displayed prices are always computed for a quantity of 1.
+                    const prices = l.get_all_prices(1);
                     return {
-                        ...l,
-                        qty: "1,00"
-                    }
+                        ...omit(l.getDisplayData(), "internalNote"),
+                        qty: "1,00",
+                        unitPriceNoVat: formatCurrency(prices.priceWithoutTax, l.currency),
+                        unitPriceWithVat: formatCurrency(prices.priceWithTax, l.currency),
+                        unitVat: formatCurrency(prices.tax, l.currency),
+                    };
                 });
         console.log("Order lines: ", order_lines)
         return {
@@ -101,7 +107,12 @@ patch(PosOrder.prototype, {
             printFullClientReceipt: false,
             printCachierReceipt: false,
             prepaid_items: null,
-            
+            // Backend-configured price display options for individual tickets.
+            indv_show_price_no_vat: !!this.config.indv_receipt_unit_price_no_vat,
+            indv_show_price_with_vat: !!this.config.indv_receipt_unit_price_with_vat,
+            label_unit_price_no_vat: _t("Price (excl. VAT)"),
+            label_vat: _t("VAT"),
+            label_total_with_vat: _t("Total (VAT incl.)"),
         };
     },
 

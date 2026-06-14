@@ -1,0 +1,35 @@
+# Combined emulator + hw_proxy image — FULL SERIAL FIDELITY.
+#
+# The default Dockerfile (TCP) is the normal path.  Use this only when you need
+# the real escpos Serial transport: socat, the emulator and hw_proxy run in one
+# container so they can share a PTY pair (PTYs can't cross container boundaries).
+#
+# Build context must be the REPO ROOT so both hw_proxy/ and emulated_printer/ are
+# available (see docker-compose.serial.yml):
+#   docker compose -f emulated_printer/docker-compose.serial.yml up --build
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/opt:/opt/emulated_printer
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      socat gcc build-essential python3-dev pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt
+
+# hw_proxy (installed system-wide, like its own offline.dev image).
+COPY ./hw_proxy/hw_proxy ./hw_proxy
+COPY ./hw_proxy/requirements-docker-dev.txt .
+COPY ./wheelhouse_dev ./wheelhouse
+RUN pip install --no-index --no-cache-dir --find-links=wheelhouse \
+      -r requirements-docker-dev.txt
+
+# Emulator.
+COPY ./emulated_printer /opt/emulated_printer
+RUN pip install --no-cache-dir -r /opt/emulated_printer/requirements.txt && \
+    chmod +x /opt/emulated_printer/start_serial.sh
+
+EXPOSE 9002
+
+CMD ["/opt/emulated_printer/start_serial.sh"]

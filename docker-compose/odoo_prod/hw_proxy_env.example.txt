@@ -3,3 +3,14 @@
 # from fiesta_pos/hw_proxy/hw_proxy/core/supported_devices.py
 # rename to hw_proxy.env
 PRINTER_KEY="PP6800"
+
+# Printer Tuning — initial defaults for the runtime-tunable print pipeline.
+# Still changeable at runtime from the hw_status UI (POST /system/print_settings).
+# strategy: pace | chunked | status_poll
+PRINT_STRATEGY="pace"
+PRINT_PACE_BASE_MS=800
+PRINT_PACE_PER_LINE_MS=30
+PRINT_CHUNK_SIZE=256
+PRINT_CHUNK_DELAY_MS=20
+PRINT_STATUS_POLL_TIMEOUT_MS=5000
+PRINT_STATUS_POLL_INTERVAL_MS=100

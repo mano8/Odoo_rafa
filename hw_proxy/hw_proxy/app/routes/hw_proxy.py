@@ -173,12 +173,12 @@ async def print_receipt_json(
     time from ~4.8 s to ~0.2 s at 115 200 baud.  Returns as soon as encoding
     completes (~5 ms); the serial write runs in the background.
     """
-    t0 = time.perf_counter()
     try:
+        # Encode + queue duration is recorded inside pool.print_receipt_json
+        # and the printed/error job counts in the drain worker, so every caller
+        # (Odoo, test batch, individual ticket) is metered in one place.  Only
+        # the encode/enqueue failure is unique to this route.
         await pool.print_receipt_json(data)
-        dur = time.perf_counter() - t0
-        print_duration_seconds.labels(action="print_receipt_json").observe(dur)
-        print_jobs_total.labels(action="print_receipt_json", result="success").inc()
         return JSONResponse({"success": True})
     except Exception as e:
         print_jobs_total.labels(action="print_receipt_json", result="error").inc()
