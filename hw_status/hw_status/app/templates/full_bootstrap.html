@@ -50,6 +50,12 @@
                     <button id="btnPrintDummy" class="btn btn-primary w-100 mb-2">
                         <i class="fas fa-print me-2"></i>Print Test Ticket
                     </button>
+                    <button id="btnClearPrintQueue" class="btn btn-warning text-white w-100 mb-2">
+                        <i class="fas fa-eraser me-2"></i>Clear printer queue
+                    </button>
+                    <button id="btnResetPrinter" class="btn btn-danger w-100 mb-2">
+                        <i class="fas fa-power-off me-2"></i>Reset printer
+                    </button>
                     <button id="btnOpenCashDrawer" class="btn btn-primary w-100">
                         <i class="fas fa-cash-register me-2"></i>Open Cash Drawer
                     </button>
@@ -128,27 +134,27 @@
                                 <option value="status_poll">status_poll</option>
                             </select>
                         </div>
-                        <div class="col-md-2 col-6">
+                        <div class="col-md-2 col-6" data-pt-strategy="pace">
                             <label for="ptPaceBase" class="form-label small fw-medium mb-1">Pace base (ms)</label>
                             <input type="number" id="ptPaceBase" class="form-control form-control-sm" min="0" max="10000">
                         </div>
-                        <div class="col-md-2 col-6">
+                        <div class="col-md-2 col-6" data-pt-strategy="pace">
                             <label for="ptPacePerLine" class="form-label small fw-medium mb-1">Pace/line (ms)</label>
                             <input type="number" id="ptPacePerLine" class="form-control form-control-sm" min="0" max="2000">
                         </div>
-                        <div class="col-md-2 col-6">
+                        <div class="col-md-2 col-6" data-pt-strategy="chunked">
                             <label for="ptChunkSize" class="form-label small fw-medium mb-1">Chunk size (B)</label>
                             <input type="number" id="ptChunkSize" class="form-control form-control-sm" min="16" max="4096">
                         </div>
-                        <div class="col-md-2 col-6">
+                        <div class="col-md-2 col-6" data-pt-strategy="chunked">
                             <label for="ptChunkDelay" class="form-label small fw-medium mb-1">Chunk delay (ms)</label>
                             <input type="number" id="ptChunkDelay" class="form-control form-control-sm" min="0" max="2000">
                         </div>
-                        <div class="col-md-2 col-6">
+                        <div class="col-md-2 col-6" data-pt-strategy="status_poll">
                             <label for="ptPollTimeout" class="form-label small fw-medium mb-1">Poll timeout (ms)</label>
                             <input type="number" id="ptPollTimeout" class="form-control form-control-sm" min="0" max="60000">
                         </div>
-                        <div class="col-md-2 col-6">
+                        <div class="col-md-2 col-6" data-pt-strategy="status_poll">
                             <label for="ptPollInterval" class="form-label small fw-medium mb-1">Poll interval (ms)</label>
                             <input type="number" id="ptPollInterval" class="form-control form-control-sm" min="10" max="5000">
                         </div>
@@ -169,12 +175,6 @@
                         </div>
                         <button id="btnPrintTestBatch" class="btn btn-outline-primary btn-sm">
                             <i class="fas fa-layer-group me-1"></i>Test batch
-                        </button>
-                        <button id="btnClearPrintQueue" class="btn btn-outline-warning btn-sm">
-                            <i class="fas fa-eraser me-1"></i>Clear queue
-                        </button>
-                        <button id="btnResetPrinter" class="btn btn-outline-danger btn-sm">
-                            <i class="fas fa-power-off me-1"></i>Reset printer
                         </button>
                     </div>
                 </div>
@@ -502,6 +502,13 @@ const App = {
             App.UI.ptChunkDelay.value = s.chunk_delay_ms;
             App.UI.ptPollTimeout.value = s.status_poll_timeout_ms;
             App.UI.ptPollInterval.value = s.status_poll_interval_ms;
+            this.toggleStrategyFields();
+        },
+        toggleStrategyFields() {
+            const strategy = App.UI.ptStrategy.value;
+            document.querySelectorAll('[data-pt-strategy]').forEach(el => {
+                el.classList.toggle('d-none', el.dataset.ptStrategy !== strategy);
+            });
         },
         _status(msg, kind = 'muted') {
             App.UI.printerTuningStatus.textContent = msg;
@@ -606,6 +613,7 @@ const App = {
         App.UI.btnRefreshServiceLogs.addEventListener('click', () => App.LogsManager.fetch());
         App.UI.btnExpandServiceLogs.addEventListener('click', () => App.LogsManager.expand());
         App.UI.btnRefreshServices.addEventListener('click', () => App.ServicesManager.fetch());
+        App.UI.ptStrategy.addEventListener('change', () => App.PrinterTuningManager.toggleStrategyFields());
         App.UI.btnApplyPrintSettings.addEventListener('click', () => App.PrinterTuningManager.apply());
         App.UI.btnPrintTestBatch.addEventListener('click', () => App.PrinterTuningManager.testBatch());
         App.UI.btnClearPrintQueue.addEventListener('click', () => App.PrinterTuningManager.clearQueue());
