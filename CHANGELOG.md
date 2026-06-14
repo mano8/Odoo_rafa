@@ -10,6 +10,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`pos_indv_receipt` per-ticket price options** — two new POS backend toggles
+  (Point of Sale → Settings → Individual Tickets) control what price is printed on each
+  individual product ticket: *Unit Price (excl. VAT)* prints the VAT-excluded unit price
+  in the right column; *Unit Price (VAT incl.)* additionally prints a VAT line and the
+  VAT-included total. Both default to off, so individual tickets now omit prices unless
+  explicitly enabled. Fully translated to Spanish. Version bumped to `18.0.0.2.0`.
+
 - **`make certs-status`** — prints expiry state for all leaf certs (Traefik TLS, Docker
   mTLS CA, Docker mTLS client) without making any changes. Safe to run from cron/monitoring.
 

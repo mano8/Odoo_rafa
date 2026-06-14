@@ -26,6 +26,29 @@ patch(PosStore.prototype, {
      * @param {*} order_line 
      * @returns 
      */
+    /**
+     * Persist an order's accumulated print count in a single write.
+     *
+     * Printing a batch of individual tickets would otherwise issue one
+     * pos.order UPDATE per ticket, causing concurrent updates on the same row
+     * (PostgreSQL "could not serialize access due to concurrent update").
+     * Callers suppress the per-ticket write (printBillActionTriggered) and call
+     * this once with the total number of tickets printed.
+     *
+     * @param {Object} order
+     * @param {number} count
+     * @returns {Promise<void>}
+     */
+    async commitPrepaidPrintCount(order, count) {
+        if (!order || count <= 0) {
+            return;
+        }
+        order.nb_print += count;
+        if (typeof order.id === "number") {
+            await this.data.write("pos.order", [order.id], { nb_print: order.nb_print });
+        }
+    },
+
     orderExportForPrintingIndividualReceipt({
         order,
         order_line = null

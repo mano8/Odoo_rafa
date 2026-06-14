@@ -289,6 +289,13 @@ make update-odoo-addon   # syncs files + restarts Odoo; version bump triggers au
 
 Adds a **"Print Product Tickets"** button on the receipt screen. Popup lets the cashier select items; prints one ticket per quantity unit. Ideal for bars, events, and kiosks.
 
+Price information on the individual tickets is controlled from **Point of Sale → Settings → Individual Tickets**:
+
+- **Unit Price (excl. VAT)** — prints the VAT-excluded unit price in the right column.
+- **Unit Price (VAT incl.)** — also prints a VAT line and the VAT-included total.
+
+Both default to off, so tickets carry no price unless one option is enabled.
+
 ---
 
 ## 🔐 Certificate Management

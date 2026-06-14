@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'POS Indv Receipt',
-    'version': '18.0.0.1.14',
+    'version': '18.0.0.2.0',
     'category': 'Sales/Point of Sale',
     'summary': 'Print individual tickets for each product unit from POS receipts.',
     'description': """
@@ -19,6 +19,9 @@ Key Features:
     'author': 'Eli Serra',
     'depends': [
         'point_of_sale'
+    ],
+    'data': [
+        'views/pos_config_views.xml',
     ],
     'assets': {
         'point_of_sale._assets_pos': [

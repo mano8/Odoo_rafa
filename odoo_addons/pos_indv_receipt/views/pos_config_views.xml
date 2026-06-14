@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!--
+        POS Settings page (Point of Sale > Settings).
+        Model: res.config.settings
+        Fields proxied through pos_config_id.* with the pos_ prefix.
+        Controls what price information is printed on individual product tickets.
+    -->
+    <record id="res_config_settings_view_form_inherit_indv_receipt" model="ir.ui.view">
+        <field name="name">res.config.settings.indv.receipt</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="point_of_sale.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//setting[@id='pos_other_devices']" position="after">
+                <setting string="Individual Tickets"
+                         help="Choose what price information is printed on each individual product ticket">
+                    <div class="content-group">
+                        <div class="row mt8">
+                            <field name="pos_indv_receipt_unit_price_no_vat"
+                                   widget="boolean_toggle" class="me-2"/>
+                            <label string="Unit Price (excl. VAT)"
+                                   for="pos_indv_receipt_unit_price_no_vat"/>
+                        </div>
+                        <div class="row mt8">
+                            <field name="pos_indv_receipt_unit_price_with_vat"
+                                   widget="boolean_toggle" class="me-2"/>
+                            <label string="Unit Price (VAT incl.)"
+                                   for="pos_indv_receipt_unit_price_with_vat"/>
+                        </div>
+                    </div>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
+    <!--
+        pos.config direct form (quick-setup wizard, + New Shop, etc.).
+        Kept as a fallback for cases where the pos.config form is opened directly.
+    -->
+    <record id="pos_config_form_view_inherit_indv_receipt" model="ir.ui.view">
+        <field name="name">pos.config.form.indv.receipt</field>
+        <field name="model">pos.config</field>
+        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//setting[@id='other_devices']" position="after">
+                <setting string="Individual Tickets"
+                         help="Choose what price information is printed on each individual product ticket">
+                    <div class="content-group">
+                        <div class="row mt8">
+                            <field name="indv_receipt_unit_price_no_vat"
+                                   widget="boolean_toggle" class="me-2"/>
+                            <label string="Unit Price (excl. VAT)"
+                                   for="indv_receipt_unit_price_no_vat"/>
+                        </div>
+                        <div class="row mt8">
+                            <field name="indv_receipt_unit_price_with_vat"
+                                   widget="boolean_toggle" class="me-2"/>
+                            <label string="Unit Price (VAT incl.)"
+                                   for="indv_receipt_unit_price_with_vat"/>
+                        </div>
+                    </div>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

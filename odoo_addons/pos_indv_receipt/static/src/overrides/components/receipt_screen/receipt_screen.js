@@ -38,20 +38,24 @@ patch(ReceiptScreen.prototype, {
             basic = false,
             order_lines = null,
             printFullClientReceipt = true,
-            printCachierReceipt = true
-        }) => this.pos.printFullPrepaidReceipt({ 
+            printCachierReceipt = true,
+            printBillActionTriggered = false
+        }) => this.pos.printFullPrepaidReceipt({
             basic: basic,
             order_lines: order_lines,
             printFullClientReceipt: printFullClientReceipt,
-            printCachierReceipt: printCachierReceipt
+            printCachierReceipt: printCachierReceipt,
+            printBillActionTriggered: printBillActionTriggered
         }));
         // This function is used to print individual receipts for each product in the order
         this.doPrintIndividualPrepaidReceipt = useTrackedAsync(({
             basic = false,
-            order_line = null
-        }) => this.pos.printIndividualPrepaidReceipt({ 
+            order_line = null,
+            printBillActionTriggered = false
+        }) => this.pos.printIndividualPrepaidReceipt({
             basic: basic,
-            order_line: order_line
+            order_line: order_line,
+            printBillActionTriggered: printBillActionTriggered
         }));
     },
 
@@ -136,6 +140,12 @@ patch(ReceiptScreen.prototype, {
             });
             return;
         }
+        // Each print below increments the order's print counter (nb_print).
+        // Writing that counter once per ticket triggers concurrent UPDATEs on the
+        // same pos_order row ("could not serialize access due to concurrent
+        // update"). We therefore suppress the per-ticket DB write
+        // (printBillActionTriggered) and persist the total once at the end.
+        let printCount = 0;
         // Print full receipt for client if requested
         if (printFullClientReceipt === true) {
             console.debug("Printing full receipt for customer.");
@@ -143,8 +153,10 @@ patch(ReceiptScreen.prototype, {
                 basic: false,
                 order_lines: selectedOrderLines,
                 printFullClientReceipt: printFullClientReceipt,
-                printCachierReceipt: false
+                printCachierReceipt: false,
+                printBillActionTriggered: true
             });
+            printCount += 1;
             const result = ['success', 'error'].includes(this.doPrintFullPrepaidReceipt.status) && this.doPrintFullPrepaidReceipt.result
             console.debug(
                 "Printing Full ticket for customer, result: ", result
@@ -157,8 +169,10 @@ patch(ReceiptScreen.prototype, {
                 basic: true,
                 order_lines: selectedOrderLines,
                 printCachierReceipt: printCachierReceipt,
-                printFullClientReceipt: false
+                printFullClientReceipt: false,
+                printBillActionTriggered: true
             });
+            printCount += 1;
             const result = ['success', 'error'].includes(this.doPrintFullPrepaidReceipt.status) && this.doPrintFullPrepaidReceipt.result
             console.debug(
                 "Printing Full ticket for cachier, result: ", result
@@ -177,8 +191,10 @@ patch(ReceiptScreen.prototype, {
             for (let i = 0; i < quantity; i++) {
                 await this.doPrintIndividualPrepaidReceipt.call({
                     basic: !individualDetailledReceipt,
-                    order_line: line
+                    order_line: line,
+                    printBillActionTriggered: true
                 });
+                printCount += 1;
                 const result = ['success', 'error'].includes(this.doPrintIndividualPrepaidReceipt.status) && this.doPrintIndividualPrepaidReceipt.result
                 console.debug(
                     "Printing individual line iteration:", i + 1, "of", quantity,
@@ -186,6 +202,8 @@ patch(ReceiptScreen.prototype, {
                 );
             }
         }
+        // Persist the accumulated print count in a single write.
+        await this.pos.commitPrepaidPrintCount(this.currentOrder, printCount);
         return true;
     }
 });
