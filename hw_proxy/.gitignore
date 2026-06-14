@@ -3,3 +3,6 @@ py_hw_proxy/*
 *__pycache__/*
 wheelhouse/*
 wheelhouse_dev/*
+# Persisted runtime print settings (machine-local state, not source)
+print_settings.json
+*.json.tmp

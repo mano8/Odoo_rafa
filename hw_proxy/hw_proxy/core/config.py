@@ -185,6 +185,9 @@ class Settings(BaseSettings):
     PRINT_CHUNK_DELAY_MS: int = 20
     PRINT_STATUS_POLL_TIMEOUT_MS: int = 5_000
     PRINT_STATUS_POLL_INTERVAL_MS: int = 100
+    # JSON file the live print settings are persisted to (so UI edits survive a
+    # restart). Relative paths resolve against ENV_FILE_DIR; absolute is honored.
+    PRINT_SETTINGS_FILE: str = "print_settings.json"
     # BACKEND_CORS_ORIGINS should be provided
     # as a comma-separated string in the env file.
     BACKEND_CORS_ORIGINS: str
@@ -218,9 +221,21 @@ class Settings(BaseSettings):
         return origins
 
     @property
+    def print_settings_path(self) -> Path:
+        """Resolved location of the persisted print-settings JSON file.
+
+        Relative ``PRINT_SETTINGS_FILE`` values resolve against
+        ``ENV_FILE_DIR``; absolute values are returned unchanged.
+        """
+        path = Path(self.PRINT_SETTINGS_FILE)
+        return path if path.is_absolute() else self.ENV_FILE_DIR / path
+
+    @property
     def print_settings(self) -> PrintSettings:
         """Build the initial print-pipeline settings from the env defaults.
 
+        These are only the *defaults*: the live values are loaded from (and
+        persisted to) :attr:`print_settings_path`, which wins when present.
         Range validation is delegated to :class:`PrintSettings`, so an
         out-of-range env value surfaces as a clear startup error.
         """
