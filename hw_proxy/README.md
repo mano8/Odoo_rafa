@@ -331,8 +331,10 @@ PRINTER_KEY="PP6800"
 
 LOG_LEVEL="Debug"
 
-# Printer Tuning — initial defaults for the runtime-tunable print pipeline.
-# Still changeable at runtime from the hw_status UI (POST /system/print_settings).
+# Printer Tuning — initial defaults (seed only) for the print pipeline.
+# Used only when the persisted settings file is missing/corrupt; once present,
+# that file wins. Still changeable at runtime from the hw_status UI
+# (POST /system/print_settings), which persists back to the file.
 # strategy: pace | chunked | status_poll
 PRINT_STRATEGY="pace"
 PRINT_PACE_BASE_MS=800
@@ -341,6 +343,8 @@ PRINT_CHUNK_SIZE=256
 PRINT_CHUNK_DELAY_MS=20
 PRINT_STATUS_POLL_TIMEOUT_MS=5000
 PRINT_STATUS_POLL_INTERVAL_MS=100
+# Where live print settings persist (UI edits survive restarts).
+PRINT_SETTINGS_FILE="print_settings.json"
 ```
 
 **Check these values carefully:**
@@ -351,7 +355,10 @@ PRINT_STATUS_POLL_INTERVAL_MS=100
 * `SECRET_KEY` → replace `"changethis"`.
 * `PRINT_*` → seed the print-pacing defaults; tune live from the hw_status
   "Printer Tuning" card, or set the startup default here (`pace` is the
-  verified safe default for the PP6800).
+  verified safe default for the PP6800). Live edits are persisted to
+  `PRINT_SETTINGS_FILE` and survive restarts; the env values are only the
+  fallback used when that file is missing or corrupt (a corrupt file is
+  replaced with these defaults).
 
 ---
 

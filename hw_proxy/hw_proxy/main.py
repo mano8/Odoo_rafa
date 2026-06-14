@@ -15,6 +15,7 @@ from hw_proxy.__init__ import configure_logging
 from hw_proxy.app.main import app_router
 from hw_proxy.core.config import settings
 from hw_proxy.core.printer_pool import PrinterPool
+from hw_proxy.core.settings_store import PrintSettingsStore
 from hw_proxy.metrics import (
     cashdrawer_operations_total,
     disk_free_bytes,
@@ -258,7 +259,14 @@ async def _printer_status_task(pool: PrinterPool) -> None:
 
 @app.on_event("startup")
 async def _startup() -> None:
-    pool = PrinterPool(settings.PRINTER_KEY, settings.print_settings)
+    # The JSON file is the source of truth and wins over env defaults; a
+    # missing/corrupt file falls back to those defaults and is rewritten.
+    store = PrintSettingsStore(
+        settings.print_settings_path, settings.print_settings
+    )
+    pool = PrinterPool(
+        settings.PRINTER_KEY, store.load(), persist=store.save
+    )
     try:
         await asyncio.to_thread(pool.open)
     except Exception as e:

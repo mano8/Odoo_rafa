@@ -94,6 +94,7 @@ class PrinterPool:
         self,
         device_key: str,
         settings: Optional[PrintSettings] = None,
+        persist: Optional[Callable[[PrintSettings], None]] = None,
     ) -> None:
         self._device_key = device_key
         self._helper: Optional[EscPosHelper] = None
@@ -101,6 +102,8 @@ class PrinterPool:
         self._last_status: dict = {"is_online": None, "paper_status": "unknown"}
         self._last_write_error: Optional[str] = None
         self._settings = settings or PrintSettings()
+        # Optional sink that persists settings whenever they change at runtime.
+        self._persist = persist
         self._queue: Optional[asyncio.Queue] = None
         self._worker_task: Optional[asyncio.Task] = None
         # Set while a reset is pending so the in-flight job's pacing step aborts
@@ -147,6 +150,8 @@ class PrinterPool:
         merged = {**self._settings.model_dump(), **partial}
         self._settings = PrintSettings(**merged)
         self.publish_settings_metrics()
+        if self._persist is not None:
+            self._persist(self._settings)
         return self._settings
 
     def publish_settings_metrics(self) -> None:

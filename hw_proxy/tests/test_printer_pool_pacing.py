@@ -137,6 +137,22 @@ def test_update_settings_rejects_out_of_range() -> None:
     assert pool.get_settings().pace_base_ms == 800
 
 
+def test_update_settings_persists_via_callback() -> None:
+    saved: list = []
+    pool = PrinterPool(device_key="test", persist=saved.append)
+    s = pool.update_settings(strategy="chunked", chunk_size=128)
+    # The persist sink receives exactly the new live settings.
+    assert saved == [s]
+
+
+def test_rejected_update_does_not_persist() -> None:
+    saved: list = []
+    pool = PrinterPool(device_key="test", persist=saved.append)
+    with pytest.raises(ValidationError):
+        pool.update_settings(pace_base_ms=999_999)
+    assert saved == []
+
+
 # ── Enqueue (print_receipt_json) ─────────────────────────────────────────────
 
 
